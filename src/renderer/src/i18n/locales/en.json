@@ -15834,6 +15834,44 @@
         "expiredCompact": "Expired",
         "typeMarkdown": "Markdown",
         "typeHtml": "HTML"
+      },
+      "calendar": {
+        "CalendarAddEventDialog": {
+          "titleRequired": "Add a title.",
+          "timeRequired": "Pick a start and an end.",
+          "endBeforeStart": "The end must not precede the start.",
+          "createFailed": "Could not save the event.",
+          "title": "New event",
+          "description": "Events live on this computer and show up beside your scheduled automations.",
+          "titleLabel": "Title",
+          "titlePlaceholder": "Dentist",
+          "startLabel": "Start",
+          "endLabel": "End",
+          "allDayLabel": "All day",
+          "notesLabel": "Notes (optional)",
+          "cancel": "Cancel",
+          "submit": "Add event"
+        },
+        "CalendarPage": {
+          "retry": "Retry",
+          "loading": "Loading calendar",
+          "loadFailed": "Could not load the calendar.",
+          "deleteFailed": "Could not delete the event."
+        },
+        "CalendarPageHeader": {
+          "close": "Close calendar",
+          "title": "Calendar",
+          "previousWeek": "Previous week",
+          "thisWeek": "This week",
+          "nextWeek": "Next week",
+          "addEvent": "New event"
+        },
+        "CalendarWeekGrid": {
+          "allDay": "All day",
+          "deleteEvent": "Delete event",
+          "automationLabel": "Automation",
+          "emptyDay": "Nothing scheduled"
+        }
       }
     },
     "i18n": {
