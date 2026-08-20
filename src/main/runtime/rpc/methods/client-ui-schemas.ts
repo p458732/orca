@@ -173,6 +173,7 @@ const TopLevelViewSchema = z.enum([
   'tasks',
   'activity',
   'automations',
+  'calendar',
   'space',
   'skills',
   'artifacts',
