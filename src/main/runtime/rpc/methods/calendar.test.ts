@@ -15,7 +15,7 @@ function methodNamed(name: string) {
 
 function makeRuntime() {
   return {
-    buildCalendarAgenda: vi.fn(() => []),
+    buildCalendarAgenda: vi.fn(() => ({ entries: [], truncated: false })),
     createCalendarEvent: vi.fn((input) => ({ id: 'evt-1', ...input })),
     deleteCalendarEvent: vi.fn()
   } as unknown as OrcaRuntimeService
@@ -36,6 +36,16 @@ describe('calendar rpc methods', () => {
     const params = method.params?.parse({ from: BASE, to: BASE + HOUR })
     await method.handler(params, { runtime })
     expect(runtime.buildCalendarAgenda).toHaveBeenCalledWith(BASE, BASE + HOUR)
+  })
+
+  // Why: without it on the wire neither consumer can tell a capped agenda from
+  // a genuinely quiet week.
+  it('agenda passes the truncation flag through to the client', async () => {
+    const runtime = makeRuntime()
+    runtime.buildCalendarAgenda = vi.fn(() => ({ entries: [], truncated: true }))
+    const method = methodNamed('calendar.agenda')
+    const params = method.params?.parse({ from: BASE, to: BASE + HOUR })
+    expect(await method.handler(params, { runtime })).toEqual({ entries: [], truncated: true })
   })
 
   it('create rejects a blank title at the schema boundary', () => {

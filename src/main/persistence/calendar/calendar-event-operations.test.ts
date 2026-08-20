@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { buildCalendarAgenda } from '../../../shared/calendar-agenda'
 import {
   createCalendarEvent,
   deleteCalendarEvent,
@@ -6,8 +7,10 @@ import {
 } from './calendar-event-operations'
 import type { StoreOwnedPersistedState } from '../loading-store/store-owned-state'
 
-const BASE = Date.UTC(2026, 0, 5, 9, 0, 0)
+const BASE = new Date(2026, 0, 5, 9, 0, 0).getTime()
 const HOUR = 60 * 60 * 1000
+const DAY = 24 * HOUR
+const LOCAL_MIDNIGHT = new Date(2026, 0, 5).getTime()
 
 function makeOperations(calendarEvents: unknown[] = []) {
   const state = { calendarEvents } as unknown as StoreOwnedPersistedState
@@ -87,5 +90,89 @@ describe('calendar event operations', () => {
     const { operations, state } = makeOperations()
     deleteCalendarEvent(operations, 'missing')
     expect(state.calendarEvents).toEqual([])
+  })
+})
+
+describe('all-day normalization', () => {
+  it('widens a zero-length all-day event to the whole local day', () => {
+    const { operations } = makeOperations()
+    const created = createCalendarEvent(operations, {
+      title: 'Holiday',
+      startAt: LOCAL_MIDNIGHT,
+      endAt: LOCAL_MIDNIGHT,
+      allDay: true
+    })
+    expect(created.startAt).toBe(LOCAL_MIDNIGHT)
+    expect(created.endAt).toBe(LOCAL_MIDNIGHT + DAY - 1)
+  })
+
+  it('gives --start D --end D+1 --all-day a genuinely two-day inclusive span', () => {
+    const { operations } = makeOperations()
+    const created = createCalendarEvent(operations, {
+      title: 'Team offsite',
+      startAt: LOCAL_MIDNIGHT,
+      endAt: new Date(2026, 0, 6).getTime(),
+      allDay: true
+    })
+    expect(created.startAt).toBe(LOCAL_MIDNIGHT)
+    expect(created.endAt).toBe(new Date(2026, 0, 6).getTime() + DAY - 1)
+  })
+
+  it('snaps mid-day all-day bounds down/up to whole local days', () => {
+    const { operations } = makeOperations()
+    const created = createCalendarEvent(operations, {
+      title: 'Conference',
+      startAt: new Date(2026, 0, 5, 9, 30).getTime(),
+      endAt: new Date(2026, 0, 6, 14, 15).getTime(),
+      allDay: true
+    })
+    expect(created.startAt).toBe(LOCAL_MIDNIGHT)
+    expect(created.endAt).toBe(new Date(2026, 0, 6).getTime() + DAY - 1)
+  })
+
+  // Why: the renderer may still post already-widened values during the transition.
+  it('is idempotent on an already-normalized span', () => {
+    const { operations } = makeOperations()
+    const normalized = { startAt: LOCAL_MIDNIGHT, endAt: LOCAL_MIDNIGHT + DAY - 1 }
+    const created = createCalendarEvent(operations, {
+      title: 'Holiday',
+      ...normalized,
+      allDay: true
+    })
+    expect({ startAt: created.startAt, endAt: created.endAt }).toEqual(normalized)
+  })
+
+  it('leaves a timed event untouched', () => {
+    const { operations } = makeOperations()
+    const created = createCalendarEvent(operations, {
+      title: 'Dentist',
+      startAt: BASE,
+      endAt: BASE + HOUR,
+      allDay: false
+    })
+    expect({ startAt: created.startAt, endAt: created.endAt }).toEqual({
+      startAt: BASE,
+      endAt: BASE + HOUR
+    })
+  })
+
+  // The reported failure: `orca calendar add --start D --all-day` writes an
+  // event that `orca calendar agenda` (window starts at *now*) cannot read back.
+  it('stays readable from an agenda window opened later the same day', () => {
+    const { operations, state } = makeOperations()
+    createCalendarEvent(operations, {
+      title: 'Holiday',
+      startAt: LOCAL_MIDNIGHT,
+      endAt: LOCAL_MIDNIGHT,
+      allDay: true
+    })
+    const now = new Date(2026, 0, 5, 10, 0).getTime()
+    const agenda = buildCalendarAgenda({
+      events: listCalendarEvents(state),
+      automations: [],
+      from: now,
+      to: now + 7 * DAY
+    })
+    expect(agenda.entries.map((entry) => entry.kind)).toEqual(['event'])
   })
 })

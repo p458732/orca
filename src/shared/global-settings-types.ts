@@ -224,7 +224,7 @@ export type GlobalSettings = {
   showTasksButton: boolean
   /** Only toggles the sidebar shortcut; Automations stay reachable from Settings/View menu. */
   showAutomationsButton?: boolean
-  /** Only toggles the sidebar shortcut; Calendar stays reachable via openCalendarPage. */
+  /** Only toggles the sidebar shortcut; Calendar stays reachable from Settings/View menu. */
   showCalendarButton?: boolean
   /** Deprecated: Artifacts are always available. Use showArtifactsButton for sidebar visibility. */
   artifactsEnabled?: boolean

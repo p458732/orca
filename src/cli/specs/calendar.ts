@@ -8,7 +8,8 @@ export const CALENDAR_COMMAND_SPECS: CommandSpec[] = [
     usage: 'orca calendar agenda [--from <date-or-datetime>] [--to <date-or-datetime>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'from', 'to'],
     notes: [
-      'A bare date (YYYY-MM-DD) or a zoneless date-time (YYYY-MM-DDTHH:mm[:ss]) is local time; add Z or an offset (e.g. +08:00) for an exact UTC instant.'
+      'A bare date (YYYY-MM-DD) or a zoneless date-time (YYYY-MM-DDTHH:mm[:ss]) is local time; add Z or an offset (e.g. +08:00) for an exact UTC instant.',
+      'The result carries truncated: true when the window held more entries than the agenda can return; personal events are kept ahead of automation runs.'
     ],
     examples: [
       'orca calendar agenda',
@@ -24,7 +25,8 @@ export const CALENDAR_COMMAND_SPECS: CommandSpec[] = [
       'orca calendar add --title <text> --start <date-or-datetime> [--end <date-or-datetime>] [--all-day] [--notes <text>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'title', 'start', 'end', 'all-day', 'notes'],
     notes: [
-      'A bare date (YYYY-MM-DD) or a zoneless date-time (YYYY-MM-DDTHH:mm[:ss]) is local time; add Z or an offset (e.g. +08:00) for an exact UTC instant.'
+      'A bare date (YYYY-MM-DD) or a zoneless date-time (YYYY-MM-DDTHH:mm[:ss]) is local time; add Z or an offset (e.g. +08:00) for an exact UTC instant.',
+      '--all-day widens the event to whole local days and treats --end as inclusive, so --start 2026-01-05 --end 2026-01-06 --all-day covers both days.'
     ],
     examples: [
       'orca calendar add --title "Dentist" --start 2026-01-05T09:00:00Z --end 2026-01-05T10:00:00Z',

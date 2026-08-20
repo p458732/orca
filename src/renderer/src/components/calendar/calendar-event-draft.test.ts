@@ -6,8 +6,6 @@ import {
   validateCalendarEventDraftFields
 } from './calendar-event-draft'
 
-const DAY = 24 * 60 * 60 * 1000
-
 describe('calendar event draft', () => {
   it('round-trips a local wall-clock value', () => {
     const local = new Date(2026, 7, 19, 9, 30).getTime()
@@ -86,7 +84,9 @@ describe('calendar event draft', () => {
     expect(draft?.notes).toBeNull()
   })
 
-  it('widens an all-day draft to cover whole local days', () => {
+  // Why: all-day widening moved to the host so the CLI and the UI agree; the
+  // draft must forward the picked wall-clock values untouched.
+  it('forwards an all-day draft unwidened for the host to normalize', () => {
     const draft = buildCalendarEventDraft({
       title: 'Offsite',
       start: '2026-08-19T09:00',
@@ -94,8 +94,23 @@ describe('calendar event draft', () => {
       allDay: true,
       notes: ''
     })
-    expect(draft?.startAt).toBe(new Date(2026, 7, 19).getTime())
-    expect(draft?.endAt).toBe(new Date(2026, 7, 20).getTime() + DAY - 1)
+    expect(draft).toEqual({
+      title: 'Offsite',
+      startAt: new Date(2026, 7, 19, 9, 0).getTime(),
+      endAt: new Date(2026, 7, 20, 14, 0).getTime(),
+      allDay: true,
+      notes: null
+    })
+  })
+
+  it('still rejects an all-day range whose end precedes its start', () => {
+    expect(
+      validateCalendarEventDraftFields({
+        title: 'Offsite',
+        start: '2026-08-20T09:00',
+        end: '2026-08-19T09:00'
+      })
+    ).toBe('end-before-start')
   })
 
   it('returns null when the fields do not validate', () => {

@@ -3055,6 +3055,7 @@ void app.whenReady().then(async () => {
       return {
         showTasksButton: settings?.showTasksButton !== false,
         showAutomationsButton: settings?.showAutomationsButton !== false,
+        showCalendarButton: settings?.showCalendarButton !== false,
         showMobileButton: settings?.showMobileButton !== false,
         showTitlebarAppName: settings?.showTitlebarAppName !== false,
         statusBarVisible: ui?.statusBarVisible !== false

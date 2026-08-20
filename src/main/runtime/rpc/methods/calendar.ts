@@ -25,9 +25,9 @@ export const CALENDAR_METHODS: RpcMethod[] = [
   defineMethod({
     name: 'calendar.agenda',
     params: CalendarWindow,
-    handler: (params, { runtime }) => ({
-      entries: runtime.buildCalendarAgenda(params.from, params.to)
-    })
+    // Returns { entries, truncated }; `truncated` is additive, so an older
+    // client that only reads `entries` is unaffected.
+    handler: (params, { runtime }) => runtime.buildCalendarAgenda(params.from, params.to)
   }),
   defineMethod({
     name: 'calendar.create',

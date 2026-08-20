@@ -1,5 +1,5 @@
 import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
-import type { AgendaEntry } from '../../../../shared/calendar-agenda'
+import type { CalendarAgenda } from '../../../../shared/calendar-agenda'
 import type { CalendarEvent } from '../../../../shared/calendar-types'
 
 // Calendar events are client-local data, so the calendar never follows the
@@ -14,13 +14,13 @@ export type CalendarEventDraft = {
   notes: string | null
 }
 
-export async function fetchCalendarAgenda(from: number, to: number): Promise<AgendaEntry[]> {
-  const result = await callRuntimeRpc<{ entries: AgendaEntry[] }>(
-    CALENDAR_TARGET,
-    'calendar.agenda',
-    { from, to }
-  )
-  return result.entries
+export async function fetchCalendarAgenda(from: number, to: number): Promise<CalendarAgenda> {
+  const result = await callRuntimeRpc<CalendarAgenda>(CALENDAR_TARGET, 'calendar.agenda', {
+    from,
+    to
+  })
+  // A host predating the cap fix answers without `truncated`.
+  return { entries: result.entries ?? [], truncated: result.truncated === true }
 }
 
 export async function createCalendarEvent(draft: CalendarEventDraft): Promise<CalendarEvent> {

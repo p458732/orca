@@ -1,7 +1,5 @@
 import type { CalendarEventDraft } from './calendar-host-client'
-import { startOfLocalDay } from './calendar-week-model'
 
-const DAY_MS = 24 * 60 * 60 * 1000
 const DATE_TIME_LOCAL_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/
 
 export type CalendarEventDraftFields = {
@@ -65,10 +63,12 @@ export function buildCalendarEventDraft(
     return null
   }
   const notes = fields.notes.trim()
+  // All-day widening belongs to the host (createCalendarEvent), so CLI- and
+  // UI-created events land on identical instants; send the picked values as-is.
   return {
     title: fields.title.trim(),
-    startAt: fields.allDay ? startOfLocalDay(startAt) : startAt,
-    endAt: fields.allDay ? startOfLocalDay(endAt) + DAY_MS - 1 : endAt,
+    startAt,
+    endAt,
     allDay: fields.allDay,
     notes: notes.length > 0 ? notes : null
   }

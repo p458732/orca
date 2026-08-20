@@ -50,7 +50,7 @@ in the window: calendar events the user recorded, and upcoming runs of enabled O
 automations. The window defaults to now through 7 days from now; pass `--from` and/or `--to`
 to widen or move it.
 
-With `--json`, the result is an array of entries discriminated by `kind`:
+With `--json`, the result carries `entries`, an array discriminated by `kind`:
 
 - `kind: 'event'` — a calendar event the user recorded. Carries `startAt`, `endAt` (epoch
   milliseconds), and `event` (the full event record, including `title` and `notes`).
@@ -60,11 +60,22 @@ With `--json`, the result is an array of entries discriminated by `kind`:
 Entries are sorted by `startAt`. `--to` at or before `--from` is an error, not an empty
 result.
 
+The `--json` result also carries `truncated`. It is `true` when the window held more entries
+than the agenda can return, so some were left out; narrow the window and read it again rather
+than reporting the short list as complete. Your own recorded events are never the ones
+dropped — only automation runs are, once the ceiling is reached.
+
 ### add
 
 Records a new calendar event. `--title` and `--start` are required. `--end` defaults to
-`--start` (a zero-length event) when omitted. `--all-day` marks the event as spanning whole
-days rather than a specific time. `--notes` is free text stored with the event.
+`--start` (a zero-length event) when omitted. `--notes` is free text stored with the event.
+
+`--all-day` marks the event as spanning whole days rather than a specific time, and the
+stored span is widened to cover them: it starts at local midnight on the `--start` day and
+ends at the last millisecond of the `--end` day. **`--end` is inclusive for an all-day
+event.** `--start 2026-01-05 --end 2026-01-06 --all-day` is a two-day event covering both
+January 5 and January 6, and `--start 2026-01-05 --all-day` (no `--end`) covers all of
+January 5 — not a zero-length event at midnight.
 
 ### remove
 

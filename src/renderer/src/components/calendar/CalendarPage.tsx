@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Info, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
@@ -14,6 +14,7 @@ export default function CalendarPage(): React.JSX.Element {
   const {
     bounds,
     columns,
+    truncated,
     loading,
     error,
     reload,
@@ -46,6 +47,18 @@ export default function CalendarPage(): React.JSX.Element {
             {translate('auto.components.calendar.CalendarPage.retry', 'Retry')}
           </Button>
         </div>
+      ) : null}
+      {truncated ? (
+        <p
+          role="status"
+          className="flex shrink-0 items-center gap-1.5 border-b border-border px-5 py-2 text-xs text-muted-foreground md:px-8"
+        >
+          <Info className="size-3.5 shrink-0" />
+          {translate(
+            'auto.components.calendar.CalendarPage.truncated',
+            'This week has more entries than the calendar can show; some are hidden.'
+          )}
+        </p>
       ) : null}
       {loading ? (
         <p

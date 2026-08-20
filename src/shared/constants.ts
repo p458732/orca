@@ -276,6 +276,7 @@ export function getDefaultSettings(homedir: string): GlobalSettings {
     showTitlebarAppName: true,
     showTasksButton: true,
     showAutomationsButton: true,
+    showCalendarButton: true,
     artifactsEnabled: true,
     artifactSharingEnabled: false,
     agentSkillSharingEnabled: false,

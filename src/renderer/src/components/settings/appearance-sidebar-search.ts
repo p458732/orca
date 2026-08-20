@@ -174,6 +174,34 @@ export const getSidebarEntries = createLocalizedCatalog((): SettingsSearchEntry[
   },
   {
     title: translate(
+      'auto.components.settings.appearance.search.showCalendarButton',
+      'Show Calendar Button'
+    ),
+    description: translate(
+      'auto.components.settings.appearance.search.showCalendarButtonDescription',
+      'Show the Calendar button at the top of the left sidebar.'
+    ),
+    keywords: [
+      ...translateSearchKeyword(
+        'auto.components.settings.appearance.search.calendarKeyword',
+        'calendar'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.appearance.search.agendaKeyword',
+        'agenda'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.appearance.search.eventsKeyword',
+        'events'
+      ),
+      ...translateSearchKeyword('auto.components.settings.appearance.search.5bff6a2ef0', 'sidebar'),
+      ...translateSearchKeyword('auto.components.settings.appearance.search.6cf5f54ce1', 'button'),
+      ...translateSearchKeyword('auto.components.settings.appearance.search.648eeada79', 'hide'),
+      ...translateSearchKeyword('auto.components.settings.appearance.search.ac79fe4a04', 'show')
+    ]
+  },
+  {
+    title: translate(
       'auto.components.settings.appearance.search.1de96ec8a6',
       'Show Orca Mobile Button'
     ),

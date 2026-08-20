@@ -16,6 +16,22 @@ export type CalendarEventCreateInput = {
   notes?: string | null
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
+function startOfLocalDay(timestamp: number): number {
+  const date = new Date(timestamp)
+  date.setHours(0, 0, 0, 0)
+  return date.getTime()
+}
+
+/** The one all-day convention: whole local days with an INCLUSIVE end, so the
+ *  CLI and the renderer store identical instants for the same days. Idempotent,
+ *  because a normalized end is still inside its own last local day. */
+function normalizeAllDaySpan(startAt: number, endAt: number): { startAt: number; endAt: number } {
+  const start = startOfLocalDay(startAt)
+  return { startAt: start, endAt: Math.max(startOfLocalDay(endAt), start) + DAY_MS - 1 }
+}
+
 export function listCalendarEvents(state: PersistedState): CalendarEvent[] {
   // Why: a hand-edited or downgraded sidecar can hold junk; drop it rather than
   // letting a malformed row reach the agenda builder.
@@ -35,13 +51,18 @@ export function createCalendarEvent(
   if (input.endAt < input.startAt) {
     throw new Error('Calendar event end must not precede its start.')
   }
+  const allDay = input.allDay ?? false
+  // Normalize after validating, so a genuinely inverted range still errors.
+  const span = allDay
+    ? normalizeAllDaySpan(input.startAt, input.endAt)
+    : { startAt: input.startAt, endAt: input.endAt }
   const now = Date.now()
   const event: CalendarEvent = {
     id: randomUUID(),
     title,
-    startAt: input.startAt,
-    endAt: input.endAt,
-    allDay: input.allDay ?? false,
+    startAt: span.startAt,
+    endAt: span.endAt,
+    allDay,
     notes: input.notes ?? null,
     source: 'local',
     createdAt: now,

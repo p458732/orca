@@ -34,6 +34,7 @@ export function defaultEventStartAt(bounds: WeekBounds, now: number): number {
 export type CalendarWeekAgenda = {
   bounds: WeekBounds
   columns: CalendarDayColumn[]
+  truncated: boolean
   loading: boolean
   error: string | null
   reload: () => void
@@ -46,6 +47,7 @@ export type CalendarWeekAgenda = {
 export function useCalendarWeekAgenda(): CalendarWeekAgenda {
   const [bounds, setBounds] = useState<WeekBounds>(() => getWeekBounds(Date.now()))
   const [entries, setEntries] = useState<AgendaEntry[]>([])
+  const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const mountedRef = useMountedRef()
@@ -59,12 +61,14 @@ export function useCalendarWeekAgenda(): CalendarWeekAgenda {
     try {
       const loaded = await fetchCalendarAgenda(bounds.from, bounds.to)
       if (isCurrent()) {
-        setEntries(loaded)
+        setEntries(loaded.entries)
+        setTruncated(loaded.truncated)
         setError(null)
       }
     } catch (cause) {
       if (isCurrent()) {
         setEntries([])
+        setTruncated(false)
         setError(
           calendarRequestErrorMessage(
             cause,
@@ -115,6 +119,7 @@ export function useCalendarWeekAgenda(): CalendarWeekAgenda {
   return {
     bounds,
     columns,
+    truncated,
     loading,
     error,
     reload: useCallback(() => void load(), [load]),

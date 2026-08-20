@@ -1,8 +1,33 @@
 import { describe, expect, it } from 'vitest'
-import { parseIsoToEpochMs, resolveAgendaWindow } from './calendar'
+import {
+  formatAgenda,
+  formatLocalAgendaTime,
+  parseIsoToEpochMs,
+  resolveAgendaWindow
+} from './calendar'
+import type { AgendaEntry } from '../../shared/calendar-agenda'
 
 const NOW = Date.UTC(2026, 0, 5, 9, 0, 0)
 const DAY = 24 * 60 * 60 * 1000
+
+function eventEntry(startAt: number, title: string, allDay = false): AgendaEntry {
+  return {
+    kind: 'event',
+    startAt,
+    endAt: startAt + 60 * 60 * 1000,
+    event: {
+      id: title,
+      title,
+      startAt,
+      endAt: startAt + 60 * 60 * 1000,
+      allDay,
+      notes: null,
+      source: 'local',
+      createdAt: startAt,
+      updatedAt: startAt
+    }
+  }
+}
 
 describe('parseIsoToEpochMs', () => {
   it('parses a full ISO timestamp with an explicit zone to the exact UTC instant', () => {
@@ -75,5 +100,51 @@ describe('resolveAgendaWindow', () => {
       ['to', '2026-01-05T00:00:00Z']
     ])
     expect(() => resolveAgendaWindow(flags, NOW)).toThrow('--to must be after --from')
+  })
+})
+
+describe('formatAgenda', () => {
+  // Why: `toISOString()` rendered UTC, so an all-day Jan 5 event printed as
+  // Jan 4 in Asia/Taipei — the wrong day in the one output a human reads.
+  it('prints the local wall-clock time, not UTC', () => {
+    const nineAmLocal = new Date(2026, 0, 5, 9, 0).getTime()
+    expect(formatAgenda({ entries: [eventEntry(nineAmLocal, 'Dentist')], truncated: false })).toBe(
+      '2026-01-05 09:00  [event]       Dentist'
+    )
+  })
+
+  it('prints an all-day event on its own local date', () => {
+    const localMidnight = new Date(2026, 0, 5).getTime()
+    expect(
+      formatAgenda({ entries: [eventEntry(localMidnight, 'Holiday', true)], truncated: false })
+    ).toBe('2026-01-05 00:00  [event]       Holiday')
+  })
+
+  it('formats a local timestamp without a UTC marker', () => {
+    expect(formatLocalAgendaTime(new Date(2026, 11, 31, 23, 5).getTime())).toBe('2026-12-31 23:05')
+  })
+
+  it('reports an empty window', () => {
+    expect(formatAgenda({ entries: [], truncated: false })).toBe(
+      'No events or scheduled automation runs in this window.'
+    )
+  })
+
+  it('says so when the agenda was capped', () => {
+    const output = formatAgenda({
+      entries: [eventEntry(new Date(2026, 0, 5, 9, 0).getTime(), 'Dentist')],
+      truncated: true
+    })
+    expect(output).toContain(
+      'Truncated: this window holds more entries than the agenda can return.'
+    )
+  })
+
+  it('stays silent when nothing was capped', () => {
+    const output = formatAgenda({
+      entries: [eventEntry(new Date(2026, 0, 5, 9, 0).getTime(), 'Dentist')],
+      truncated: false
+    })
+    expect(output).not.toContain('Truncated')
   })
 })

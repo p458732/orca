@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { i18n } from '@/i18n/i18n'
-import { getLanguageEntries } from './appearance-search'
+import { getLanguageEntries, getSidebarEntries } from './appearance-search'
 import { matchesSettingsSearch } from './settings-search'
 
 // Native word for "language" in each supported UI language. These must be
@@ -28,5 +28,22 @@ describe('getLanguageEntries', () => {
   it('matches the Spanish native language name in English UI', async () => {
     await i18n.changeLanguage('en')
     expect(matchesSettingsSearch('Español', getLanguageEntries()[0])).toBe(true)
+  })
+})
+
+// AppearanceWindowSidebarSection looks these up positionally (sidebarEntries[n]),
+// so inserting one out of order silently mislabels a neighbouring switch.
+describe('getSidebarEntries order', () => {
+  it('matches the switch order rendered by the sidebar appearance section', () => {
+    expect(
+      getSidebarEntries()
+        .slice(0, 4)
+        .map((entry) => entry.title)
+    ).toEqual([
+      'Show Tasks Button',
+      'Show Automations Button',
+      'Show Calendar Button',
+      'Show Orca Mobile Button'
+    ])
   })
 })

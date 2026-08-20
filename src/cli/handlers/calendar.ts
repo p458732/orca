@@ -1,4 +1,4 @@
-import type { AgendaEntry } from '../../shared/calendar-agenda'
+import type { AgendaEntry, CalendarAgenda } from '../../shared/calendar-agenda'
 import type { CalendarEvent } from '../../shared/calendar-types'
 import type { CommandHandler } from '../dispatch'
 import { getOptionalStringFlag, getRequiredStringFlag } from '../flags'
@@ -79,18 +79,31 @@ function getAllDayFlag(flags: Map<string, string | boolean>): boolean {
   return value === true
 }
 
-function formatAgenda(result: { entries: AgendaEntry[] }): string {
+function pad(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+// Why: the rest of the feature (bare-date parsing, the week grid) is local, so a
+// UTC render here shows the wrong day off UTC. `--json` still carries epoch ms.
+export function formatLocalAgendaTime(timestamp: number): string {
+  const at = new Date(timestamp)
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${pad(at.getHours())}:${pad(at.getMinutes())}`
+}
+
+export function formatAgenda(result: CalendarAgenda): string {
   if (result.entries.length === 0) {
     return 'No events or scheduled automation runs in this window.'
   }
-  return result.entries
-    .map((entry) => {
-      const when = new Date(entry.startAt).toISOString()
-      return entry.kind === 'event'
-        ? `${when}  [event]       ${entry.event.title}`
-        : `${when}  [automation]  ${entry.name}`
-    })
-    .join('\n')
+  const lines = result.entries.map((entry: AgendaEntry) => {
+    const when = formatLocalAgendaTime(entry.startAt)
+    return entry.kind === 'event'
+      ? `${when}  [event]       ${entry.event.title}`
+      : `${when}  [automation]  ${entry.name}`
+  })
+  if (result.truncated) {
+    lines.push('', 'Truncated: this window holds more entries than the agenda can return.')
+  }
+  return lines.join('\n')
 }
 
 function formatEvent(result: { event: CalendarEvent }): string {
@@ -100,7 +113,7 @@ function formatEvent(result: { event: CalendarEvent }): string {
 export const CALENDAR_HANDLERS: Record<string, CommandHandler> = {
   'calendar agenda': async ({ flags, client, json }) => {
     const window = resolveAgendaWindow(flags, Date.now())
-    const result = await client.call<{ entries: AgendaEntry[] }>('calendar.agenda', window)
+    const result = await client.call<CalendarAgenda>('calendar.agenda', window)
     printResult(result, json, formatAgenda)
   },
   'calendar add': async ({ flags, client, json }) => {

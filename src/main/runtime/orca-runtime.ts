@@ -264,7 +264,7 @@ import type {
 } from '../../shared/automations-types'
 import {
   buildCalendarAgenda as buildCalendarAgendaFrom,
-  type AgendaEntry
+  type CalendarAgenda
 } from '../../shared/calendar-agenda'
 import type { CalendarEvent } from '../../shared/calendar-types'
 import type { CalendarEventCreateInput } from '../persistence/calendar/calendar-event-operations'
@@ -4067,7 +4067,7 @@ export class OrcaRuntimeService {
     this.store?.deleteCalendarEvent?.(id)
   }
 
-  buildCalendarAgenda(from: number, to: number): AgendaEntry[] {
+  buildCalendarAgenda(from: number, to: number): CalendarAgenda {
     return buildCalendarAgendaFrom({
       events: this.listCalendarEvents(),
       automations: this.listAutomations(),

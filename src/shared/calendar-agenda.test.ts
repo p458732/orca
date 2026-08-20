@@ -55,7 +55,7 @@ function automation(overrides: Partial<Automation> = {}): Automation {
 
 describe('buildCalendarAgenda', () => {
   it('returns only events when there are no automations', () => {
-    const agenda = buildCalendarAgenda({
+    const { entries: agenda } = buildCalendarAgenda({
       events: [event()],
       automations: [],
       from: BASE,
@@ -66,7 +66,7 @@ describe('buildCalendarAgenda', () => {
   })
 
   it('returns only automation runs when there are no events', () => {
-    const agenda = buildCalendarAgenda({
+    const { entries: agenda } = buildCalendarAgenda({
       events: [],
       automations: [automation()],
       from: BASE,
@@ -83,11 +83,11 @@ describe('buildCalendarAgenda', () => {
   it('returns an empty agenda when both sources are empty', () => {
     expect(
       buildCalendarAgenda({ events: [], automations: [], from: BASE, to: BASE + DAY })
-    ).toEqual([])
+    ).toEqual({ entries: [], truncated: false })
   })
 
   it('merges both sources sorted by start time', () => {
-    const agenda = buildCalendarAgenda({
+    const { entries: agenda } = buildCalendarAgenda({
       events: [event()],
       automations: [automation()],
       from: BASE,
@@ -98,7 +98,7 @@ describe('buildCalendarAgenda', () => {
   })
 
   it('expands a recurring automation across multiple days', () => {
-    const agenda = buildCalendarAgenda({
+    const { entries: agenda } = buildCalendarAgenda({
       events: [],
       automations: [automation()],
       from: BASE,
@@ -108,7 +108,7 @@ describe('buildCalendarAgenda', () => {
   })
 
   it('excludes events entirely outside the window', () => {
-    const agenda = buildCalendarAgenda({
+    const { entries: agenda } = buildCalendarAgenda({
       events: [event({ id: 'past', startAt: BASE - 5 * DAY, endAt: BASE - 5 * DAY + HOUR })],
       automations: [],
       from: BASE,
@@ -118,7 +118,7 @@ describe('buildCalendarAgenda', () => {
   })
 
   it('includes an event that overlaps the window boundary', () => {
-    const agenda = buildCalendarAgenda({
+    const { entries: agenda } = buildCalendarAgenda({
       events: [event({ id: 'straddle', startAt: BASE - HOUR, endAt: BASE + HOUR })],
       automations: [],
       from: BASE,
@@ -129,7 +129,7 @@ describe('buildCalendarAgenda', () => {
   })
 
   it('skips disabled automations', () => {
-    const agenda = buildCalendarAgenda({
+    const { entries: agenda } = buildCalendarAgenda({
       events: [],
       automations: [automation({ enabled: false })],
       from: BASE,
@@ -139,7 +139,7 @@ describe('buildCalendarAgenda', () => {
   })
 
   it('returns an empty agenda when the window is inverted', () => {
-    const agenda = buildCalendarAgenda({
+    const { entries: agenda } = buildCalendarAgenda({
       events: [event()],
       automations: [automation()],
       from: BASE + DAY,
@@ -148,8 +148,15 @@ describe('buildCalendarAgenda', () => {
     expect(agenda).toEqual([])
   })
 
+  it('reports truncated: false for an agenda that fits', () => {
+    expect(
+      buildCalendarAgenda({ events: [event()], automations: [], from: BASE, to: BASE + DAY })
+        .truncated
+    ).toBe(false)
+  })
+
   it('truncates at AGENDA_MAX_ENTRIES so a wide window cannot explode', () => {
-    const agenda = buildCalendarAgenda({
+    const { entries: agenda } = buildCalendarAgenda({
       events: [],
       automations: [automation({ rrule: 'FREQ=HOURLY;BYMINUTE=0' })],
       from: BASE,
@@ -158,8 +165,61 @@ describe('buildCalendarAgenda', () => {
     expect(agenda).toHaveLength(AGENDA_MAX_ENTRIES)
   })
 
-  it('skips an automation whose schedule cannot be expanded', () => {
+  it('flags an agenda that hit the entry ceiling', () => {
     const agenda = buildCalendarAgenda({
+      events: [],
+      automations: [automation({ rrule: 'FREQ=HOURLY;BYMINUTE=0' })],
+      from: BASE,
+      to: BASE + 365 * DAY
+    })
+    expect(agenda.truncated).toBe(true)
+  })
+
+  // The reported failure: automation expansion consumed the shared budget first,
+  // so late user events sorted past index 500 and disappeared from every consumer.
+  it('never evicts a user event to make room for automation runs', () => {
+    const hourly = (id: string): Automation =>
+      automation({ id, name: id, rrule: 'FREQ=HOURLY;BYMINUTE=0' })
+    const events = [163, 164, 165, 166, 167].map((hour) =>
+      event({
+        id: `sunday-${hour}`,
+        title: `Dinner ${hour}`,
+        startAt: BASE + hour * HOUR,
+        endAt: BASE + hour * HOUR + HOUR
+      })
+    )
+    const agenda = buildCalendarAgenda({
+      events,
+      automations: [hourly('auto-a'), hourly('auto-b'), hourly('auto-c')],
+      from: BASE,
+      to: BASE + 7 * DAY
+    })
+    expect(agenda.entries.filter((entry) => entry.kind === 'event')).toHaveLength(events.length)
+    expect(agenda.entries.length).toBeLessThanOrEqual(AGENDA_MAX_ENTRIES)
+    expect(agenda.truncated).toBe(true)
+  })
+
+  it('keeps every user event when events alone overflow the ceiling', () => {
+    const events = Array.from({ length: AGENDA_MAX_ENTRIES + 20 }, (_unused, index) =>
+      event({
+        id: `evt-${index}`,
+        startAt: BASE + index * 60_000,
+        endAt: BASE + index * 60_000 + HOUR
+      })
+    )
+    const agenda = buildCalendarAgenda({
+      events,
+      automations: [automation()],
+      from: BASE,
+      to: BASE + DAY
+    })
+    expect(agenda.entries).toHaveLength(AGENDA_MAX_ENTRIES)
+    expect(agenda.entries.every((entry) => entry.kind === 'event')).toBe(true)
+    expect(agenda.truncated).toBe(true)
+  })
+
+  it('skips an automation whose schedule cannot be expanded', () => {
+    const { entries: agenda } = buildCalendarAgenda({
       events: [event()],
       automations: [automation({ rrule: 'not-a-real-rule' })],
       from: BASE,
