@@ -449,6 +449,7 @@ export function getDefaultPersistedState(homedir: string): PersistedState {
     migrationUnsupportedPtyEntries: [],
     legacyPaneKeyAliasEntries: [],
     automations: [],
+    calendarEvents: [],
     automationRuns: [],
     onboarding: getDefaultOnboardingState(),
     featureInteractionTelemetryBuckets: {},
