@@ -93,6 +93,7 @@ import SidebarNav, {
   shouldShowAgentsButton,
   shouldShowAutomationsButton,
   shouldShowArtifactsButton,
+  shouldShowCalendarButton,
   shouldShowMobileButton,
   shouldShowSetupGuideEntry
 } from './SidebarNav'
@@ -388,6 +389,15 @@ describe('SidebarNav', () => {
 
   it('hides the Automations entry when the sidebar setting is off', () => {
     expect(shouldShowAutomationsButton({ showAutomationsButton: false })).toBe(false)
+  })
+
+  it('shows the calendar button by default', () => {
+    expect(shouldShowCalendarButton(null)).toBe(true)
+    expect(shouldShowCalendarButton({ showCalendarButton: true })).toBe(true)
+  })
+
+  it('hides the calendar button when the setting is false', () => {
+    expect(shouldShowCalendarButton({ showCalendarButton: false })).toBe(false)
   })
 
   it('omits the Automations row when the sidebar setting is off', async () => {
