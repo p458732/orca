@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { Repo } from '../../../../../../shared/repo-types'
 import type { AppState } from '../../../../store/types'
-import { getDirectoryGroupKey, resolveWorktreeGroupingRoot } from './directory-grouping'
+import type { Worktree } from '../../../../../../shared/worktree/types'
+import {
+  buildDirectoryGrouping,
+  getDirectoryGroupKey,
+  resolveWorktreeGroupingRoot
+} from './directory-grouping'
 
 const repo: Repo = {
   id: 'repo-1',
@@ -68,5 +73,185 @@ describe('getDirectoryGroupKey', () => {
     expect(getDirectoryGroupKey('local', 'C:\\proj\\series.a')).toBe(
       getDirectoryGroupKey('local', 'C:/proj/series.a')
     )
+  })
+})
+
+const emRepo: Repo = { ...repo, worktreeBasePath: '../..' }
+const emRepoMap = new Map([[emRepo.id, emRepo]])
+
+function makeWorktree(id: string, path: string, overrides: Partial<Worktree> = {}): Worktree {
+  return {
+    id,
+    repoId: emRepo.id,
+    path,
+    branch: `refs/heads/${id}`,
+    head: 'abc123',
+    isBare: false,
+    isMainWorktree: false,
+    linkedIssue: null,
+    linkedPR: null,
+    linkedLinearIssue: null,
+    isArchived: false,
+    comment: '',
+    isUnread: false,
+    isPinned: false,
+    displayName: id,
+    sortOrder: 0,
+    lastActivityAt: 0,
+    ...overrides
+  }
+}
+
+describe('buildDirectoryGrouping', () => {
+  const settings = makeSettings()
+
+  it('puts a worktree sitting directly in the root into rootWorktrees', () => {
+    const quick = makeWorktree('quick', '/home/me/proj/quick')
+    const grouping = buildDirectoryGrouping({
+      worktrees: [quick],
+      repoMap: emRepoMap,
+      settings
+    })
+    expect(grouping.rootWorktrees).toEqual([quick])
+    expect(grouping.nodes).toEqual([])
+  })
+
+  it('creates one node for a worktree one directory deep', () => {
+    const baseline = makeWorktree('baseline', '/home/me/proj/series.tune_lr/baseline')
+    const grouping = buildDirectoryGrouping({
+      worktrees: [baseline],
+      repoMap: emRepoMap,
+      settings
+    })
+    expect(grouping.rootWorktrees).toEqual([])
+    expect(grouping.nodes).toHaveLength(1)
+    expect(grouping.nodes[0]).toMatchObject({
+      label: 'series.tune_lr',
+      depth: 0,
+      worktrees: [baseline],
+      children: []
+    })
+  })
+
+  it('nests every intermediate directory even when it holds no worktree itself', () => {
+    const probe = makeWorktree('probe', '/home/me/proj/series.a/series.b/probe')
+    const grouping = buildDirectoryGrouping({
+      worktrees: [probe],
+      repoMap: emRepoMap,
+      settings
+    })
+    expect(grouping.nodes).toHaveLength(1)
+    const outer = grouping.nodes[0]!
+    expect(outer).toMatchObject({ label: 'series.a', depth: 0, worktrees: [] })
+    expect(outer.children).toHaveLength(1)
+    expect(outer.children[0]).toMatchObject({
+      label: 'series.b',
+      depth: 1,
+      worktrees: [probe],
+      children: []
+    })
+  })
+
+  it('groups siblings under one node and orders top-level nodes by label', () => {
+    const gaze = makeWorktree('gaze-probe', '/home/me/proj/series.gaze/probe')
+    const lr1 = makeWorktree('lr1', '/home/me/proj/series.tune_lr/lr1')
+    const lr2 = makeWorktree('lr2', '/home/me/proj/series.tune_lr/lr2')
+    const grouping = buildDirectoryGrouping({
+      worktrees: [lr1, gaze, lr2],
+      repoMap: emRepoMap,
+      settings
+    })
+    expect(grouping.nodes.map((node) => node.label)).toEqual(['series.gaze', 'series.tune_lr'])
+    expect(grouping.nodes[1]!.worktrees).toEqual([lr1, lr2])
+  })
+
+  it('keeps full depth beyond the header indent cap', () => {
+    const deep = makeWorktree('deep', '/home/me/proj/a/b/c/d/e/f/g/h/deep')
+    const grouping = buildDirectoryGrouping({
+      worktrees: [deep],
+      repoMap: emRepoMap,
+      settings
+    })
+    let depth = 0
+    let node = grouping.nodes[0]
+    while (node?.children.length) {
+      node = node.children[0]
+      depth += 1
+    }
+    expect(depth).toBe(7)
+    expect(node?.worktrees).toEqual([deep])
+  })
+
+  it('sends a worktree outside the grouping root to rootWorktrees', () => {
+    const stray = makeWorktree('stray', '/tmp/elsewhere/stray')
+    const grouping = buildDirectoryGrouping({
+      worktrees: [stray],
+      repoMap: emRepoMap,
+      settings
+    })
+    expect(grouping.rootWorktrees).toEqual([stray])
+    expect(grouping.nodes).toEqual([])
+  })
+
+  it('sends a worktree whose repo is unknown to rootWorktrees', () => {
+    const orphan = makeWorktree('orphan', '/home/me/proj/series.a/orphan', { repoId: 'missing' })
+    const grouping = buildDirectoryGrouping({
+      worktrees: [orphan],
+      repoMap: emRepoMap,
+      settings
+    })
+    expect(grouping.rootWorktrees).toEqual([orphan])
+    expect(grouping.nodes).toEqual([])
+  })
+
+  it('keeps the same relative folder in two repos as two separate groups', () => {
+    const repoB: Repo = {
+      ...emRepo,
+      id: 'repo-2',
+      path: '/home/me/other/.em/repo'
+    }
+    const a = makeWorktree('a', '/home/me/proj/series.tune_lr/a')
+    const b = makeWorktree('b', '/home/me/other/series.tune_lr/b', { repoId: repoB.id })
+    const grouping = buildDirectoryGrouping({
+      worktrees: [a, b],
+      repoMap: new Map([
+        [emRepo.id, emRepo],
+        [repoB.id, repoB]
+      ]),
+      settings
+    })
+    expect(grouping.nodes).toHaveLength(2)
+    expect(new Set(grouping.nodes.map((node) => node.key)).size).toBe(2)
+  })
+
+  it('keeps the same absolute directory on two hosts as two separate groups', () => {
+    const local = makeWorktree('local', '/home/me/proj/series.a/local')
+    const remote = makeWorktree('remote', '/home/me/proj/series.a/remote', {
+      hostId: 'ssh:gpu'
+    })
+    const grouping = buildDirectoryGrouping({
+      worktrees: [local, remote],
+      repoMap: emRepoMap,
+      settings
+    })
+    expect(grouping.nodes).toHaveLength(2)
+    expect(new Set(grouping.nodes.map((node) => node.key)).size).toBe(2)
+  })
+
+  it('groups Windows paths the same way as posix ones', () => {
+    const windowsRepo: Repo = {
+      ...emRepo,
+      id: 'repo-win',
+      path: 'C:\\proj\\.em\\repo',
+      worktreeBasePath: '../..'
+    }
+    const wt = makeWorktree('win', 'C:\\proj\\series.a\\win', { repoId: windowsRepo.id })
+    const grouping = buildDirectoryGrouping({
+      worktrees: [wt],
+      repoMap: new Map([[windowsRepo.id, windowsRepo]]),
+      settings
+    })
+    expect(grouping.nodes).toHaveLength(1)
+    expect(grouping.nodes[0]).toMatchObject({ label: 'series.a', depth: 0, worktrees: [wt] })
   })
 })
