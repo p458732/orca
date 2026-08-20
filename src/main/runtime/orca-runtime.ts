@@ -262,6 +262,12 @@ import type {
   AutomationUpdateInput,
   AutomationWorkspaceMode
 } from '../../shared/automations-types'
+import {
+  buildCalendarAgenda as buildCalendarAgendaFrom,
+  type AgendaEntry
+} from '../../shared/calendar-agenda'
+import type { CalendarEvent } from '../../shared/calendar-types'
+import type { CalendarEventCreateInput } from '../persistence/calendar/calendar-event-operations'
 import type { DirEntry, FilesystemPathFlavor } from '../../shared/filesystem-entry-types'
 import type { FolderWorkspace, WorkspaceKey } from '../../shared/folder-workspace-types'
 import type {
@@ -1316,6 +1322,9 @@ type RuntimeStore = {
   createAutomation?: Store['createAutomation']
   updateAutomation?: Store['updateAutomation']
   deleteAutomation?: Store['deleteAutomation']
+  listCalendarEvents?: Store['listCalendarEvents']
+  createCalendarEvent?: Store['createCalendarEvent']
+  deleteCalendarEvent?: Store['deleteCalendarEvent']
   getSparsePresets?: Store['getSparsePresets']
   saveSparsePreset?: Store['saveSparsePreset']
   getMobileClientTabSelections?: Store['getMobileClientTabSelections']
@@ -4038,6 +4047,33 @@ export class OrcaRuntimeService {
       throw new Error('runtime_unavailable')
     }
     return this.store.listAutomations()
+  }
+
+  listCalendarEvents(): CalendarEvent[] {
+    if (!this.store?.listCalendarEvents) {
+      return []
+    }
+    return this.store.listCalendarEvents()
+  }
+
+  createCalendarEvent(input: CalendarEventCreateInput): CalendarEvent {
+    if (!this.store?.createCalendarEvent) {
+      throw new Error('Calendar storage is unavailable.')
+    }
+    return this.store.createCalendarEvent(input)
+  }
+
+  deleteCalendarEvent(id: string): void {
+    this.store?.deleteCalendarEvent?.(id)
+  }
+
+  buildCalendarAgenda(from: number, to: number): AgendaEntry[] {
+    return buildCalendarAgendaFrom({
+      events: this.listCalendarEvents(),
+      automations: this.listAutomations(),
+      from,
+      to
+    })
   }
 
   listAutomationRuns(automationId?: string): AutomationRun[] {
