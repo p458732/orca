@@ -47,6 +47,11 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     load: async () => (await import('./handlers/automations.js')).AUTOMATION_HANDLERS
   },
   {
+    name: 'calendar',
+    keys: ['calendar agenda', 'calendar add', 'calendar remove'],
+    load: async () => (await import('./handlers/calendar.js')).CALENDAR_HANDLERS
+  },
+  {
     name: 'project',
     keys: [
       'project list',
