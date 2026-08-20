@@ -62,6 +62,10 @@ export function getFolderWorkspaceLaneKey(
       return getPRLaneKey('in-progress')
     case 'none':
       return ALL_GROUP_KEY
+    // Why: a folder workspace has no repo, so it has no grouping root to sit
+    // under; directory grouping renders it alongside the root worktrees.
+    case 'directory':
+      return ALL_GROUP_KEY
   }
 }
 
