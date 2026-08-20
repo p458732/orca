@@ -9,35 +9,47 @@ const DEFAULT_WINDOW_DAYS = 7
 const DAY_MS = 24 * 60 * 60 * 1000
 const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/
 
+function invalidIsoDateTime(flagName: string): RuntimeClientError {
+  return new RuntimeClientError(
+    'invalid_argument',
+    `Invalid --${flagName}: expected an ISO 8601 date-time`
+  )
+}
+
+// Why: `null` alone can't tell "not date-only shaped" (fall through to
+// Date.parse) apart from "date-only shaped but the date doesn't exist" (must
+// throw, not silently roll over) — round 2 fix, see task-5-report.md.
+type DateOnlyMatch = { shape: 'none' } | { shape: 'invalid' } | { shape: 'valid'; ms: number }
+
 // Why: a bare date has no universal meaning — Date.parse treats it as UTC
 // midnight, but every other part of this feature (event display, the week
 // grid) is local. Build it from components so it's genuinely local and
-// DST-safe, and reject a calendar date that doesn't exist (e.g. Feb 30).
-function parseDateOnlyLocalMs(value: string): number | null {
+// DST-safe, and flag a calendar date that doesn't exist (e.g. Feb 30).
+function matchDateOnly(value: string): DateOnlyMatch {
   const match = DATE_ONLY.exec(value)
   if (!match) {
-    return null
+    return { shape: 'none' }
   }
   const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])]
   const date = new Date(year, month - 1, day)
   const rolledOver =
     date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day
-  return rolledOver ? null : date.getTime()
+  return rolledOver ? { shape: 'invalid' } : { shape: 'valid', ms: date.getTime() }
 }
 
 export function parseIsoToEpochMs(value: string, flagName: string): number {
-  const dateOnlyMs = parseDateOnlyLocalMs(value)
-  if (dateOnlyMs !== null) {
-    return dateOnlyMs
+  const dateOnly = matchDateOnly(value)
+  if (dateOnly.shape === 'valid') {
+    return dateOnly.ms
+  }
+  if (dateOnly.shape === 'invalid') {
+    throw invalidIsoDateTime(flagName)
   }
   // Why: a zoneless date-time (no Z/offset) is already parsed as local by
   // Date.parse — only the date-only case above needed correcting.
   const parsed = Date.parse(value)
   if (Number.isNaN(parsed)) {
-    throw new RuntimeClientError(
-      'invalid_argument',
-      `Invalid --${flagName}: expected an ISO 8601 date-time`
-    )
+    throw invalidIsoDateTime(flagName)
   }
   return parsed
 }

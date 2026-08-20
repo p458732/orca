@@ -26,6 +26,31 @@ describe('parseIsoToEpochMs', () => {
       'Invalid --start: expected an ISO 8601 date-time'
     )
   })
+
+  // Why: `new Date(y, m-1, d)` silently rolls an invalid calendar date forward
+  // (e.g. Feb 30 -> Mar 2) instead of throwing — these must be rejected, not
+  // land on the wrong day.
+  it('rejects a February 30th', () => {
+    expect(() => parseIsoToEpochMs('2026-02-30', 'start')).toThrow(
+      'Invalid --start: expected an ISO 8601 date-time'
+    )
+  })
+
+  it('rejects an April 31st', () => {
+    expect(() => parseIsoToEpochMs('2026-04-31', 'start')).toThrow(
+      'Invalid --start: expected an ISO 8601 date-time'
+    )
+  })
+
+  it('rejects February 29th in a non-leap year', () => {
+    expect(() => parseIsoToEpochMs('2026-02-29', 'start')).toThrow(
+      'Invalid --start: expected an ISO 8601 date-time'
+    )
+  })
+
+  it('accepts a real leap day and resolves it to local midnight', () => {
+    expect(parseIsoToEpochMs('2028-02-29', 'start')).toBe(new Date(2028, 1, 29).getTime())
+  })
 })
 
 describe('resolveAgendaWindow', () => {
