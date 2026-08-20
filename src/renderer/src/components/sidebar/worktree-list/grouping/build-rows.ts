@@ -10,6 +10,8 @@ import { LOCAL_EXECUTION_HOST_ID } from '../../../../../../shared/execution-host
 import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import { getWorktreeHostIdentity } from '../../../../../../shared/worktree/host-qualified-identity'
 import { getCyclicProjectedWorktreeLineageIds } from '../../worktree-lineage-projection'
+import { buildDirectoryGrouping } from './directory-grouping'
+import { appendDirectorySections } from './directory-group-sections'
 import { ALL_GROUP_KEY, ALL_GROUP_META } from './group-keys'
 import { appendOrderedGroups } from './group-sections'
 import type { SectionAppendContext } from './group-sections'
@@ -147,6 +149,39 @@ export function buildRows(
     cyclicLineageIds,
     noticeHostContextLabelByRepoId
   )
+  if (groupBy === 'directory') {
+    appendDirectorySections(
+      {
+        result,
+        groupBy,
+        collapsedGroups,
+        workspaceStatuses,
+        repoMap,
+        defaultHostId,
+        hostLabelById,
+        projectIndex,
+        importedWorktreesByRepo,
+        newExternalWorktreesInboxByRepo,
+        pendingByRepo,
+        mixedWorktreeHostContextLabels,
+        lineageById,
+        worktreeMap,
+        nestLineage,
+        cyclicLineageIds
+      },
+      {
+        grouping: buildDirectoryGrouping({
+          worktrees: naturalWorktrees,
+          repoMap,
+          settings,
+          defaultHostId
+        }),
+        folderWorkspaces: renderableFolderWorkspaces
+      }
+    )
+    return result
+  }
+
   if (groupBy === 'none') {
     // Why folder workspaces gate this too: an account with only folder
     // workspaces rendered nothing at all in flat mode before (#15362).
