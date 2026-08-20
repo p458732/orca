@@ -5,8 +5,20 @@ const NOW = Date.UTC(2026, 0, 5, 9, 0, 0)
 const DAY = 24 * 60 * 60 * 1000
 
 describe('parseIsoToEpochMs', () => {
-  it('parses a full ISO timestamp', () => {
+  it('parses a full ISO timestamp with an explicit zone to the exact UTC instant', () => {
     expect(parseIsoToEpochMs('2026-01-05T09:00:00Z', 'start')).toBe(NOW)
+  })
+
+  // Why: a bare date must mean *local* midnight (matching how events/week-grid
+  // render), not UTC midnight — Date.parse alone gets this wrong.
+  it('resolves a date-only string to local midnight', () => {
+    expect(parseIsoToEpochMs('2026-01-05', 'start')).toBe(new Date(2026, 0, 5).getTime())
+  })
+
+  it('resolves a zoneless date-time to local time', () => {
+    expect(parseIsoToEpochMs('2026-01-05T09:00:00', 'start')).toBe(
+      new Date(2026, 0, 5, 9, 0, 0).getTime()
+    )
   })
 
   it('throws a flag-named error on unparseable input', () => {

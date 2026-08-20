@@ -7,8 +7,31 @@ import { RuntimeClientError } from '../runtime-client'
 
 const DEFAULT_WINDOW_DAYS = 7
 const DAY_MS = 24 * 60 * 60 * 1000
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/
+
+// Why: a bare date has no universal meaning — Date.parse treats it as UTC
+// midnight, but every other part of this feature (event display, the week
+// grid) is local. Build it from components so it's genuinely local and
+// DST-safe, and reject a calendar date that doesn't exist (e.g. Feb 30).
+function parseDateOnlyLocalMs(value: string): number | null {
+  const match = DATE_ONLY.exec(value)
+  if (!match) {
+    return null
+  }
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])]
+  const date = new Date(year, month - 1, day)
+  const rolledOver =
+    date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day
+  return rolledOver ? null : date.getTime()
+}
 
 export function parseIsoToEpochMs(value: string, flagName: string): number {
+  const dateOnlyMs = parseDateOnlyLocalMs(value)
+  if (dateOnlyMs !== null) {
+    return dateOnlyMs
+  }
+  // Why: a zoneless date-time (no Z/offset) is already parsed as local by
+  // Date.parse — only the date-only case above needed correcting.
   const parsed = Date.parse(value)
   if (Number.isNaN(parsed)) {
     throw new RuntimeClientError(
