@@ -6,8 +6,10 @@ import { getIntlLocale, translate } from '@/i18n/i18n'
 import type { AgendaEntry } from '../../../../shared/calendar-agenda'
 import { startOfLocalDay, type CalendarDayColumn } from './calendar-week-model'
 
-function agendaEntryKey(entry: AgendaEntry): string {
-  return entry.kind === 'event' ? entry.event.id : `${entry.automationId}:${entry.startAt}`
+/** Scoped to the column: a multi-day event renders one chip per column it covers. */
+function agendaEntryKey(entry: AgendaEntry, dayStart: number): string {
+  const id = entry.kind === 'event' ? entry.event.id : `${entry.automationId}:${entry.startAt}`
+  return `${dayStart}:${id}`
 }
 
 function formatClockTime(timestamp: number): string {
@@ -36,17 +38,21 @@ function CalendarEventChip({
   onSelect: (eventId: string) => void
   onDelete: (eventId: string) => void
 }): React.JSX.Element {
+  // Why a flex row, not an overlay: a narrow column truncates the title, and an
+  // absolutely positioned delete control would sit on top of it.
   return (
-    <div className="relative">
+    <div
+      data-selected={selected}
+      className={cn(
+        'flex items-start gap-1 rounded-md border border-border bg-card transition-colors hover:bg-accent',
+        selected && 'ring-2 ring-ring'
+      )}
+    >
       <button
         type="button"
         aria-pressed={selected}
-        data-selected={selected}
         onClick={() => onSelect(entry.event.id)}
-        className={cn(
-          'w-full rounded-md border border-border bg-card px-2 py-1.5 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          selected && 'ring-2 ring-ring'
-        )}
+        className="min-w-0 flex-1 rounded-md px-2 py-1.5 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         <div className="truncate text-xs font-medium text-card-foreground">{entry.event.title}</div>
         <div className="truncate text-[11px] text-muted-foreground">
@@ -62,7 +68,7 @@ function CalendarEventChip({
               type="button"
               variant="ghost"
               size="icon-xs"
-              className="absolute top-1 right-1 text-muted-foreground hover:text-destructive"
+              className="mt-1 mr-1 shrink-0 text-muted-foreground hover:text-destructive"
               aria-label={translate(
                 'auto.components.calendar.CalendarWeekGrid.deleteEvent',
                 'Delete event'
@@ -152,7 +158,7 @@ function CalendarDayCell({
           column.entries.map((entry) =>
             entry.kind === 'event' ? (
               <CalendarEventChip
-                key={agendaEntryKey(entry)}
+                key={agendaEntryKey(entry, column.dayStart)}
                 entry={entry}
                 selected={selectedEventId === entry.event.id}
                 onSelect={onSelectEvent}
@@ -160,7 +166,7 @@ function CalendarDayCell({
               />
             ) : (
               <CalendarAutomationChip
-                key={agendaEntryKey(entry)}
+                key={agendaEntryKey(entry, column.dayStart)}
                 entry={entry}
                 onOpenAutomations={onOpenAutomations}
               />

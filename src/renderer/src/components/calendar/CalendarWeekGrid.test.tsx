@@ -17,6 +17,25 @@ vi.mock('@/components/ui/tooltip', () => ({
 
 const HOUR = 60 * 60 * 1000
 
+function spanEntry(startAt: number, endAt: number, title: string): AgendaEntry {
+  return {
+    kind: 'event',
+    startAt,
+    endAt,
+    event: {
+      id: title,
+      title,
+      startAt,
+      endAt,
+      allDay: false,
+      notes: null,
+      source: 'local',
+      createdAt: startAt,
+      updatedAt: startAt
+    }
+  }
+}
+
 function eventEntry(startAt: number): AgendaEntry {
   return {
     kind: 'event',
@@ -95,6 +114,18 @@ describe('CalendarWeekGrid', () => {
     const selected = renderGrid(entries, { selectedEventId: 'event-1' })
     await userEvent.click(screen.getByLabelText('Delete event'))
     expect(selected.props.onDeleteEvent).toHaveBeenCalledWith('event-1')
+  })
+
+  it('renders one chip per column a multi-day event covers, with unique keys', () => {
+    const bounds = getWeekBounds(Date.now())
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    renderGrid([
+      spanEntry(bounds.from + 9 * HOUR, bounds.from + 2 * 24 * HOUR + 17 * HOUR, 'Offsite')
+    ])
+    expect(screen.getAllByText('Offsite')).toHaveLength(3)
+    expect(screen.getAllByText('Nothing scheduled')).toHaveLength(4)
+    expect(consoleError).not.toHaveBeenCalled()
+    consoleError.mockRestore()
   })
 
   it('shows a placeholder in every empty column', () => {
