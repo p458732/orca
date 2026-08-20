@@ -329,6 +329,14 @@ import {
   type AutomationDefinitionOperations
 } from '../scheduling-automations/automation-definition-operations'
 import {
+  createCalendarEvent as createCalendarEventOperation,
+  deleteCalendarEvent as deleteCalendarEventOperation,
+  listCalendarEvents as listCalendarEventsOperation,
+  type CalendarEventCreateInput,
+  type CalendarEventOperations
+} from '../calendar/calendar-event-operations'
+import type { CalendarEvent } from '../../../shared/calendar-types'
+import {
   createAutomationRun as createAutomationRunOperation,
   listAutomationRuns as listAutomationRunsOperation,
   snapshotAutomationRunWorkspaceDisplayName as snapshotAutomationRunWorkspaceDisplayNameOperation,
@@ -1535,6 +1543,7 @@ export class Store {
             parsed.legacyPaneKeyAliasEntries
           ),
           automations: Array.isArray(parsed.automations) ? parsed.automations : [],
+          calendarEvents: Array.isArray(parsed.calendarEvents) ? parsed.calendarEvents : [],
           automationRuns: (() => {
             if (!Array.isArray(parsed.automationRuns)) {
               return []
@@ -2436,6 +2445,27 @@ export class Store {
 
   deleteAutomation(id: string): void {
     deleteAutomationOperation(this.getAutomationDefinitionOperations(), id)
+  }
+
+  // ── Calendar events ───────────────────────────────────────────────
+
+  private getCalendarEventOperations(): CalendarEventOperations {
+    return {
+      state: this.state,
+      flush: () => this.flush()
+    }
+  }
+
+  listCalendarEvents(): CalendarEvent[] {
+    return listCalendarEventsOperation(this.state)
+  }
+
+  createCalendarEvent(input: CalendarEventCreateInput): CalendarEvent {
+    return createCalendarEventOperation(this.getCalendarEventOperations(), input)
+  }
+
+  deleteCalendarEvent(id: string): void {
+    deleteCalendarEventOperation(this.getCalendarEventOperations(), id)
   }
 
   createAutomationRun(
