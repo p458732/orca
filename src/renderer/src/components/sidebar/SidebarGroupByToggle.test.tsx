@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SidebarGroupByToggle } from './SidebarGroupByToggle'
 import type { WorktreeGroupBy } from './worktree-list/grouping/row-types'
+import { GROUP_BY_OPTIONS } from './sidebar-workspace-option-items'
 
 const roots: Root[] = []
 
@@ -50,5 +51,9 @@ describe('SidebarGroupByToggle', () => {
 
     expect(noneButton).not.toBeUndefined()
     expect(setGroupBy).toHaveBeenCalledWith('none')
+  })
+
+  it('offers directory grouping', () => {
+    expect(GROUP_BY_OPTIONS.map((option) => option.id)).toContain('directory')
   })
 })

@@ -29,6 +29,12 @@ export const GROUP_BY_OPTIONS = [
     get label() {
       return translate('auto.components.sidebar.SidebarWorkspaceOptionsMenu.2170d553cf', 'Project')
     }
+  },
+  {
+    id: 'directory',
+    get label() {
+      return translate('auto.components.sidebar.SidebarWorkspaceOptionsMenu.directory', 'Folder')
+    }
   }
 ] as const
 
