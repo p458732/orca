@@ -67,13 +67,12 @@ export function mapGoogleEvent(raw: unknown, calendarId: string): GoogleCalendar
   if (allDay) {
     const rawStart = parseFloatingDate(start.date as string)
     const rawEnd = typeof end.date === 'string' ? parseFloatingDate(end.date as string) : null
-    // Why: Google's all-day `end.date` is exclusive — step back one day before
-    // widening to this project's inclusive end.
-    const inclusiveEnd = rawEnd === null ? rawStart : rawEnd - DAY_MS
-    if (rawStart === null || inclusiveEnd === null) {
+    if (rawStart === null || rawEnd === null) {
       return null
     }
-    const span = normalizeAllDaySpan(rawStart, inclusiveEnd)
+    // Why: Google's all-day `end.date` is exclusive — step back one day before
+    // widening to this project's inclusive end.
+    const span = normalizeAllDaySpan(rawStart, rawEnd - DAY_MS)
     startAt = span.startAt
     endAt = span.endAt
   } else {

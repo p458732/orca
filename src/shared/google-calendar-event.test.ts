@@ -70,6 +70,21 @@ describe('mapGoogleEvent — all-day events', () => {
     expect(event?.startAt).toBe(new Date(2026, 7, 21).getTime())
     expect(event?.endAt).toBe(new Date(2026, 7, 23, 23, 59, 59, 999).getTime())
   })
+
+  it('returns null rather than inventing a span when end.date is missing', () => {
+    const event = mapGoogleEvent(
+      {
+        id: 'evt5',
+        status: 'confirmed',
+        summary: 'No end date',
+        start: { date: '2026-08-20' },
+        end: {},
+        updated: '2026-08-19T00:00:00.000Z'
+      },
+      CAL
+    )
+    expect(event).toBeNull()
+  })
 })
 
 describe('mapGoogleEvent — filtering and defaults', () => {
@@ -109,5 +124,72 @@ describe('mapGoogleEvent — filtering and defaults', () => {
     expect(mapGoogleEvent(null, CAL)).toBeNull()
     expect(mapGoogleEvent({ id: 'no-times', status: 'confirmed' }, CAL)).toBeNull()
     expect(mapGoogleEvent({ status: 'confirmed', start: {}, end: {} }, CAL)).toBeNull()
+  })
+})
+
+describe('mapGoogleEvent — deeper malformed-input paths', () => {
+  it('returns null when start.date fails the YYYY-MM-DD shape check', () => {
+    const event = mapGoogleEvent(
+      {
+        id: 'evt-bad-date-shape',
+        status: 'confirmed',
+        summary: 'Bad shape',
+        start: { date: '20-08-2026' },
+        end: { date: '2026-08-21' },
+        updated: '2026-08-19T00:00:00.000Z'
+      },
+      CAL
+    )
+    expect(event).toBeNull()
+  })
+
+  // Surfacing actual behavior, not endorsing it: parseFloatingDate's regex only
+  // checks digit shape, not calendar range, so an out-of-range month/day rolls
+  // forward via JS Date arithmetic instead of being rejected.
+  it('rolls a shape-valid but calendar-nonsense date forward rather than rejecting it', () => {
+    const event = mapGoogleEvent(
+      {
+        id: 'evt-nonsense-date',
+        status: 'confirmed',
+        summary: 'Nonsense date',
+        start: { date: '2026-13-45' },
+        end: { date: '2026-13-46' },
+        updated: '2026-08-19T00:00:00.000Z'
+      },
+      CAL
+    )
+    expect(event).not.toBeNull()
+    expect(event?.startAt).toBe(new Date(2026, 12, 45).getTime())
+    expect(event?.endAt).toBe(new Date(2026, 12, 45, 23, 59, 59, 999).getTime())
+  })
+
+  it('returns null when start.dateTime is not a parsable timestamp', () => {
+    const event = mapGoogleEvent(
+      {
+        id: 'evt-bad-start-datetime',
+        status: 'confirmed',
+        summary: 'Bad start',
+        start: { dateTime: 'not-a-timestamp' },
+        end: { dateTime: '2026-08-20T10:00:00+08:00' },
+        updated: '2026-08-19T00:00:00.000Z'
+      },
+      CAL
+    )
+    expect(event).toBeNull()
+  })
+
+  it('returns null when end.dateTime is not a parsable timestamp', () => {
+    const event = mapGoogleEvent(
+      {
+        id: 'evt-bad-end-datetime',
+        status: 'confirmed',
+        summary: 'Bad end',
+        start: { dateTime: '2026-08-20T09:00:00+08:00' },
+        end: { dateTime: 'not-a-timestamp' },
+        updated: '2026-08-19T00:00:00.000Z'
+      },
+      CAL
+    )
+    expect(event).toBeNull()
   })
 })
