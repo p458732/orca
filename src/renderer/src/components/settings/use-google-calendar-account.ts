@@ -32,6 +32,9 @@ export type GoogleCalendarAccount = {
   connecting: boolean
   syncing: boolean
   disconnecting: boolean
+  /** A dead refresh token leaves the tokens on disk, so the account still reads
+   *  as connected — the pane needs this to offer repair without a disconnect. */
+  needsReconnect: boolean
   notice: GoogleCalendarNotice | null
   connect: () => void
   disconnect: () => void
@@ -49,6 +52,7 @@ export function useGoogleCalendarAccount(): GoogleCalendarAccount {
   const [connecting, setConnecting] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
+  const [needsReconnect, setNeedsReconnect] = useState(false)
   const [notice, setNotice] = useState<GoogleCalendarNotice | null>(null)
 
   // Why: a host without these methods is not a failure the user can act on, so it
@@ -128,6 +132,7 @@ export function useGoogleCalendarAccount(): GoogleCalendarAccount {
     void (async () => {
       try {
         await connectGoogleCalendar()
+        setNeedsReconnect(false)
         const next = await refreshStatus()
         if (next?.connected) {
           await loadCalendars()
@@ -160,6 +165,7 @@ export function useGoogleCalendarAccount(): GoogleCalendarAccount {
           return
         }
         setCalendars([])
+        setNeedsReconnect(false)
         if (!revoked) {
           setNotice({
             tone: 'error',
@@ -192,11 +198,13 @@ export function useGoogleCalendarAccount(): GoogleCalendarAccount {
   const syncNow = useCallback((): void => {
     setSyncing(true)
     setNotice(null)
+    setNeedsReconnect(false)
     void (async () => {
       try {
         const outcome = await syncGoogleCalendarNow()
         if (mountedRef.current) {
           setNotice(describeGoogleSyncOutcome(outcome, calendars))
+          setNeedsReconnect(outcome.status === 'failed' && outcome.reason === 'auth_revoked')
           await refreshStatus()
         }
       } catch (error) {
@@ -257,6 +265,7 @@ export function useGoogleCalendarAccount(): GoogleCalendarAccount {
     connecting,
     syncing,
     disconnecting,
+    needsReconnect,
     notice,
     connect,
     disconnect,

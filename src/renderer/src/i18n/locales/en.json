@@ -11311,7 +11311,7 @@
           "syncNotConnected": "Google account is not connected. Connect it above, then sync again.",
           "syncAuthRevoked": "Google access is no longer valid. Reconnect your Google account to sync again.",
           "syncRateLimited": "Google is limiting requests right now. This is temporary — sync again in a few minutes.",
-          "syncPageLimit": "“{{value0}}” has more events than one sync can fetch. Deselect it below, then sync again.",
+          "syncPageLimit": "“{{value0}}” has more events than one sync can fetch. Deselect it above, then sync again.",
           "syncPageLimitUnnamed": "One selected calendar has more events than one sync can fetch. Deselect the calendars you do not need, then sync again.",
           "syncNetworkError": "Could not reach Google. Check your internet connection, then sync again.",
           "syncFailed": "The sync did not finish. Try again.",
@@ -11322,7 +11322,8 @@
           "connectFailed": "Could not connect to Google. Try again.",
           "notRevoked": "Orca’s access was removed from this computer, but Google did not confirm the revocation. Remove Orca from your Google Account under Third-party apps & services.",
           "disconnectFailed": "Could not disconnect the Google account. Try again.",
-          "selectionFailed": "Could not save the calendar selection."
+          "selectionFailed": "Could not save the calendar selection.",
+          "reconnect": "Reconnect"
         }
       },
       "right": {

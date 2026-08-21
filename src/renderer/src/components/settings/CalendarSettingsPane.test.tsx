@@ -216,6 +216,40 @@ describe('CalendarSettingsPane', () => {
     expect(screen.queryByText(reason)).not.toBeInTheDocument()
   })
 
+  it('offers a reconnect that repairs the account in place after auth_revoked', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 })
+    mocks.syncNow.mockResolvedValue({
+      status: 'failed',
+      syncedAt: null,
+      reason: 'auth_revoked'
+    })
+    await renderConnected()
+    expect(screen.queryByRole('button', { name: 'Reconnect' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Sync now' }))
+    const reconnect = await screen.findByRole('button', { name: 'Reconnect' })
+
+    await user.click(reconnect)
+    expect(mocks.connect).toHaveBeenCalledOnce()
+    // The repair must never route through the destructive path.
+    expect(mocks.disconnect).not.toHaveBeenCalled()
+    expect(screen.queryByText('Disconnect Google Calendar?')).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Reconnect' })).not.toBeInTheDocument()
+    )
+    expect(screen.getByRole('button', { name: 'Disconnect' })).toBeInTheDocument()
+  })
+
+  it('keeps reconnect out of a healthy connected account', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 })
+    await renderConnected()
+
+    expect(screen.queryByRole('button', { name: 'Reconnect' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Sync now' }))
+    await screen.findByText('Calendars synced.')
+    expect(screen.queryByRole('button', { name: 'Reconnect' })).not.toBeInTheDocument()
+  })
+
   it('names the oversized calendar behind page_limit_exceeded', async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 })
     mocks.syncNow.mockResolvedValue({
@@ -227,11 +261,13 @@ describe('CalendarSettingsPane', () => {
     await renderConnected()
 
     await user.click(screen.getByRole('button', { name: 'Sync now' }))
+    const message = await screen.findByText(
+      '“Personal” has more events than one sync can fetch. Deselect it above, then sync again.'
+    )
+    // The copy says "above", so the checkboxes must really precede the notice.
     expect(
-      await screen.findByText(
-        '“Personal” has more events than one sync can fetch. Deselect it below, then sync again.'
-      )
-    ).toBeInTheDocument()
+      message.compareDocumentPosition(screen.getByRole('checkbox', { name: 'Personal' }))
+    ).toBe(Node.DOCUMENT_POSITION_PRECEDING)
   })
 
   it('reports a successful and an already-fresh sync differently', async () => {

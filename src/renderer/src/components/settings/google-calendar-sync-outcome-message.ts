@@ -48,7 +48,7 @@ function describeFailure(
       return label
         ? translate(
             'auto.components.settings.calendar.syncPageLimit',
-            '“{{value0}}” has more events than one sync can fetch. Deselect it below, then sync again.',
+            '“{{value0}}” has more events than one sync can fetch. Deselect it above, then sync again.',
             { value0: label }
           )
         : translate(

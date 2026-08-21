@@ -28,16 +28,35 @@ export function GoogleCalendarConnectedDetails({
         label={translate('auto.components.settings.calendar.accountLabel', 'Google account')}
         description={account.accountEmail ?? undefined}
         control={
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            disabled={account.disconnecting}
-            onClick={onRequestDisconnect}
-          >
-            {account.disconnecting ? <Loader2 className="animate-spin" /> : null}
-            {translate('auto.components.settings.calendar.disconnect', 'Disconnect')}
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* A dead grant keeps the account connected, so repair must not route through disconnect. */}
+            {account.needsReconnect ? (
+              <Button
+                type="button"
+                size="sm"
+                disabled={account.connecting}
+                onClick={account.connect}
+              >
+                {account.connecting ? <Loader2 className="animate-spin" /> : null}
+                {account.connecting
+                  ? translate(
+                      'auto.components.settings.calendar.connecting',
+                      'Waiting for your browser…'
+                    )
+                  : translate('auto.components.settings.calendar.reconnect', 'Reconnect')}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={account.disconnecting}
+              onClick={onRequestDisconnect}
+            >
+              {account.disconnecting ? <Loader2 className="animate-spin" /> : null}
+              {translate('auto.components.settings.calendar.disconnect', 'Disconnect')}
+            </Button>
+          </div>
         }
       />
       <SettingsRow
