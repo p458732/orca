@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  GoogleAccessRevokedError,
   GooglePageLimitExceededError,
   GoogleRateLimitedError,
   listGoogleCalendars,
@@ -68,6 +69,21 @@ describe('listGoogleEvents', () => {
     })
     const [url] = fetchImpl.mock.calls[0]
     expect(new URL(String(url)).searchParams.get('singleEvents')).toBe('true')
+  })
+
+  it('sets an explicit maxResults so Google does not silently apply its own default', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse({ items: [] })
+    )
+    await listGoogleEvents({
+      accessToken: 'token',
+      calendarId: 'primary',
+      timeMin: TIME_MIN,
+      timeMax: TIME_MAX,
+      fetchImpl
+    })
+    const [url] = fetchImpl.mock.calls[0]
+    expect(new URL(String(url)).searchParams.get('maxResults')).toBe('2500')
   })
 
   it('sends timeMin/timeMax as RFC3339 strings derived from the epoch millis', async () => {
@@ -221,6 +237,72 @@ describe('listGoogleEvents', () => {
     expect(caught).not.toBeInstanceOf(GoogleRateLimitedError)
     expect((caught as Error).message).toContain('500')
     expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('raises GoogleAccessRevokedError on 401 without retrying', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ error: 'invalid_credentials' }, 401))
+    await expect(
+      listGoogleEvents({
+        accessToken: 'token',
+        calendarId: 'primary',
+        timeMin: TIME_MIN,
+        timeMax: TIME_MAX,
+        fetchImpl
+      })
+    ).rejects.toBeInstanceOf(GoogleAccessRevokedError)
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('raises GoogleAccessRevokedError on 403 without retrying', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ error: 'insufficientPermissions' }, 403))
+    await expect(
+      listGoogleEvents({
+        accessToken: 'token',
+        calendarId: 'primary',
+        timeMin: TIME_MIN,
+        timeMax: TIME_MAX,
+        fetchImpl
+      })
+    ).rejects.toBeInstanceOf(GoogleAccessRevokedError)
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps 429 as GoogleRateLimitedError, not GoogleAccessRevokedError', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ error: 'rateLimitExceeded' }, 429))
+    let caught: unknown
+    try {
+      await listGoogleEvents({
+        accessToken: 'token',
+        calendarId: 'primary',
+        timeMin: TIME_MIN,
+        timeMax: TIME_MAX,
+        fetchImpl
+      })
+    } catch (error) {
+      caught = error
+    }
+    expect(caught).toBeInstanceOf(GoogleRateLimitedError)
+    expect(caught).not.toBeInstanceOf(GoogleAccessRevokedError)
+  })
+
+  it('keeps a 500 as a plain Error carrying its status, not GoogleAccessRevokedError', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ error: 'backend_error' }, 500))
+    let caught: unknown
+    try {
+      await listGoogleEvents({
+        accessToken: 'token',
+        calendarId: 'primary',
+        timeMin: TIME_MIN,
+        timeMax: TIME_MAX,
+        fetchImpl
+      })
+    } catch (error) {
+      caught = error
+    }
+    expect(caught).toBeInstanceOf(Error)
+    expect(caught).not.toBeInstanceOf(GoogleAccessRevokedError)
+    expect(caught).not.toBeInstanceOf(GoogleRateLimitedError)
+    expect((caught as Error).message).toContain('500')
   })
 
   it('never leaks the access token into a thrown error message', async () => {

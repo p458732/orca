@@ -6,6 +6,9 @@ const CALENDAR_LIST_URL = 'https://www.googleapis.com/calendar/v3/users/me/calen
 const EVENTS_BASE_URL = 'https://www.googleapis.com/calendar/v3/calendars'
 // Why: caps a self-referential nextPageToken so a broken response can't hang the sync forever.
 const MAX_EVENT_PAGES = 20
+// Why: Google's documented per-page ceiling for events.list — set explicitly so the effective
+// window (this × MAX_EVENT_PAGES) is ours to reason about, not whatever Google defaults to.
+const MAX_RESULTS_PER_PAGE = 2500
 
 export type GoogleCalendarSummary = {
   id: string
@@ -18,6 +21,16 @@ export class GoogleRateLimitedError extends Error {
   constructor() {
     super('Google Calendar API rate limit was exceeded.')
     this.name = 'GoogleRateLimitedError'
+  }
+}
+
+// Why: Task 9 refreshes the access token before every call, so a 401 (or 403 — e.g. access to
+// this specific calendar was revoked) here means the grant itself is gone, not merely stale.
+// Distinguished so the caller can prompt reconnect instead of treating it as a generic failure.
+export class GoogleAccessRevokedError extends Error {
+  constructor() {
+    super('Google Calendar access was revoked or is no longer authorized.')
+    this.name = 'GoogleAccessRevokedError'
   }
 }
 
@@ -39,6 +52,9 @@ function authHeaders(accessToken: string): Record<string, string> {
 async function throwForFailedResponse(response: Response): Promise<never> {
   if (response.status === 429) {
     throw new GoogleRateLimitedError()
+  }
+  if (response.status === 401 || response.status === 403) {
+    throw new GoogleAccessRevokedError()
   }
   throw new Error(`Google Calendar API request failed with status ${response.status}`)
 }
@@ -69,6 +85,7 @@ function buildEventsUrl(calendarId: string, timeMin: number, timeMax: number): U
   url.searchParams.set('singleEvents', 'true')
   url.searchParams.set('timeMin', new Date(timeMin).toISOString())
   url.searchParams.set('timeMax', new Date(timeMax).toISOString())
+  url.searchParams.set('maxResults', String(MAX_RESULTS_PER_PAGE))
   return url
 }
 
