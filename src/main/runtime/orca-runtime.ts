@@ -266,7 +266,7 @@ import {
   buildCalendarAgenda as buildCalendarAgendaFrom,
   type CalendarAgenda
 } from '../../shared/calendar-agenda'
-import type { CalendarEvent } from '../../shared/calendar-types'
+import { isImportedCalendarEventId, type CalendarEvent } from '../../shared/calendar-types'
 import type { CalendarEventCreateInput } from '../persistence/calendar/calendar-event-operations'
 import type { DirEntry, FilesystemPathFlavor } from '../../shared/filesystem-entry-types'
 import type { FolderWorkspace, WorkspaceKey } from '../../shared/folder-workspace-types'
@@ -4069,7 +4069,16 @@ export class OrcaRuntimeService {
     return this.store.createCalendarEvent(input)
   }
 
+  // Why: imported events (google:...) never live in the local store — an older
+  // paired client that doesn't know 'google' as a source can still render one
+  // and offer delete; without this check that request silently no-ops instead
+  // of telling the user why the event didn't go away (remote-wire-compat #3).
   deleteCalendarEvent(id: string): void {
+    if (isImportedCalendarEventId(id)) {
+      throw new Error(
+        'This event was imported from an external calendar and is read-only. Change it in its source calendar instead.'
+      )
+    }
     this.store?.deleteCalendarEvent?.(id)
   }
 

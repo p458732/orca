@@ -4,6 +4,19 @@ export const CALENDAR_EVENT_SOURCES = ['local', 'google'] as const
 
 export type CalendarEventSource = (typeof CALENDAR_EVENT_SOURCES)[number]
 
+// Why: imported ids are `${prefix}:...` (see GOOGLE_EVENT_ID_PREFIX in
+// google-calendar-event.ts); local ids are bare UUIDs and never contain a
+// colon. A list (not a single hardcoded check) so a future provider only
+// needs to add its prefix here, not a new one-off check at each call site.
+const IMPORTED_CALENDAR_EVENT_ID_PREFIXES = ['google'] as const
+
+/** True for any provider-imported event id. Imports are read-only by design —
+ *  callers must reject deletion/mutation of these ids rather than silently
+ *  no-op against a store that never contains them. */
+export function isImportedCalendarEventId(id: string): boolean {
+  return IMPORTED_CALENDAR_EVENT_ID_PREFIXES.some((prefix) => id.startsWith(`${prefix}:`))
+}
+
 export type CalendarEvent = {
   id: string
   title: string
