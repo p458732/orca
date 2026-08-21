@@ -13,6 +13,7 @@ import {
   Bug,
   Cable,
   CalendarClock,
+  CalendarDays,
   CircleUserRound,
   FlaskConical,
   GitBranch,
@@ -64,6 +65,7 @@ import { getOrchestrationPaneSearchEntries } from '@/components/settings/orchest
 import { getArtifactsSettingsSearchEntries } from '@/components/settings/artifacts-settings-search'
 import { getShareSkillsSettingsSearchEntries } from '@/components/settings/share-skills-settings-search'
 import { getAutomationsSettingsSearchEntries } from '@/components/settings/automations-settings-search'
+import { getCalendarSettingsSearchEntries } from '@/components/settings/calendar-settings-search'
 import { getOrcaAccountSettingsSearchEntries } from '@/components/settings/orca-account-settings-search'
 import { getLinearAgentSkillPaneSearchEntries } from '@/components/settings/linear-agent-skill-search'
 import {
@@ -369,6 +371,17 @@ export function buildSettingsNavigationMetadata({
       searchEntries: getShareSkillsSettingsSearchEntries(),
       group: 'workflows',
       badge: translate('auto.hooks.useSettingsNavigationMetadata.40d80bad8a', 'Beta')
+    },
+    {
+      id: 'calendar',
+      title: translate('auto.hooks.useSettingsNavigationMetadata.calendarTitle', 'Calendar'),
+      description: translate(
+        'auto.hooks.useSettingsNavigationMetadata.calendarDescription',
+        'Show Calendar in the sidebar and import events from Google Calendar.'
+      ),
+      icon: CalendarDays,
+      searchEntries: getCalendarSettingsSearchEntries(),
+      group: 'workflows'
     },
     {
       id: 'git',

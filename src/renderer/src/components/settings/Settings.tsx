@@ -58,6 +58,7 @@ import { PluginsSettingsSection } from './PluginsSettingsSection'
 import { AgentsPane } from './AgentsPane'
 import { OrchestrationPane } from './OrchestrationPane'
 import { ArtifactsSettingsPane } from './ArtifactsSettingsPane'
+import { CalendarSettingsPane } from './CalendarSettingsPane'
 import { ShareSkillsSettingsPane } from './ShareSkillsSettingsPane'
 import { AutomationsSettingsPane } from './AutomationsSettingsPane'
 import { OrcaAccountSettingsPane } from './OrcaAccountSettingsPane'
@@ -1472,6 +1473,20 @@ function Settings(): React.JSX.Element {
                   searchEntries={getSectionSearchEntries('share-skills')}
                 >
                   {isSectionMounted('share-skills') ? <ShareSkillsSettingsPane /> : null}
+                </SettingsSection>
+
+                <SettingsSection
+                  id="calendar"
+                  title={translate('auto.components.settings.calendar.title', 'Calendar')}
+                  description={translate(
+                    'auto.components.settings.calendar.description',
+                    'Show Calendar in the sidebar and import events from Google Calendar.'
+                  )}
+                  searchEntries={getSectionSearchEntries('calendar')}
+                >
+                  {isSectionMounted('calendar') ? (
+                    <CalendarSettingsPane settings={settings} updateSettings={updateSettings} />
+                  ) : null}
                 </SettingsSection>
 
                 <SettingsSection
