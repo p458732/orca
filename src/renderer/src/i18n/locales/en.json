@@ -15923,7 +15923,9 @@
           "allDay": "All day",
           "deleteEvent": "Delete event",
           "automationLabel": "Automation",
-          "emptyDay": "Nothing scheduled"
+          "emptyDay": "Nothing scheduled",
+          "importedSource": "Google",
+          "readOnlyEvent": "Read-only"
         }
       }
     },
