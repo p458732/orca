@@ -228,6 +228,9 @@ export type GlobalSettings = {
   showCalendarButton?: boolean
   /** Google calendar ids the user ticked for import. Absent means none selected yet. */
   googleCalendarSelectedIds?: string[]
+  /** Reason the last Google sync failed, or null once one succeeds. Persisted so a
+   *  grant that died overnight is visible on relaunch. Never holds credential data. */
+  googleCalendarLastSyncFailure?: string | null
   /** Deprecated: Artifacts are always available. Use showArtifactsButton for sidebar visibility. */
   artifactsEnabled?: boolean
   /** Capability gate for agent-driven publishing; off until granted, enforced in main, not just the UI. */

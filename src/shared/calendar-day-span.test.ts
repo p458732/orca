@@ -39,3 +39,26 @@ describe('normalizeAllDaySpan', () => {
     expect(span.endAt).toBe(new Date(2026, 7, 23, 23, 59, 59, 999).getTime())
   })
 })
+
+// Why: every other fixture here is an August date, which is exactly why the
+// 23-hour spring-forward day went unnoticed. These hold in Asia/Taipei (no DST) too.
+describe('normalizeAllDaySpan — across a spring-forward day', () => {
+  it('ends a single all-day event on its own day, not 00:59 the next', () => {
+    const springForward = new Date(2026, 2, 8).getTime()
+    const span = normalizeAllDaySpan(springForward, springForward)
+    expect(span.startAt).toBe(springForward)
+    expect(span.endAt).toBe(new Date(2026, 2, 8, 23, 59, 59, 999).getTime())
+  })
+
+  it('ends a multi-day span that crosses the transition on the last day', () => {
+    const span = normalizeAllDaySpan(new Date(2026, 2, 6).getTime(), new Date(2026, 2, 9).getTime())
+    expect(span.startAt).toBe(new Date(2026, 2, 6).getTime())
+    expect(span.endAt).toBe(new Date(2026, 2, 9, 23, 59, 59, 999).getTime())
+  })
+
+  it('ends a single all-day event on its own day across a fall-back day', () => {
+    const fallBack = new Date(2026, 10, 1).getTime()
+    const span = normalizeAllDaySpan(fallBack, fallBack)
+    expect(span.endAt).toBe(new Date(2026, 10, 1, 23, 59, 59, 999).getTime())
+  })
+})

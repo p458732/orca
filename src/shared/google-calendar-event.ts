@@ -1,4 +1,4 @@
-import { DAY_MS, normalizeAllDaySpan } from './calendar-day-span'
+import { normalizeAllDaySpan, shiftLocalDay } from './calendar-day-span'
 import type { CalendarEvent } from './calendar-types'
 
 export const GOOGLE_EVENT_ID_PREFIX = 'google'
@@ -71,9 +71,9 @@ export function mapGoogleEvent(raw: unknown, calendarId: string): GoogleCalendar
     if (rawStart === null || rawEnd === null) {
       return null
     }
-    // Why: Google's all-day `end.date` is exclusive — step back one day before
-    // widening to this project's inclusive end.
-    const span = normalizeAllDaySpan(rawStart, rawEnd - DAY_MS)
+    // Why: Google's all-day `end.date` is exclusive — step back one CALENDAR day
+    // (a DST day isn't 24h) before widening to this project's inclusive end.
+    const span = normalizeAllDaySpan(rawStart, shiftLocalDay(rawEnd, -1))
     startAt = span.startAt
     endAt = span.endAt
   } else {

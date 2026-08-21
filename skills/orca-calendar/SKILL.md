@@ -2,8 +2,9 @@
 name: orca-calendar
 description: >-
   Use Orca's calendar CLI through `orca calendar ...` to read the user's
-  schedule with `orca calendar agenda --json`, which merges personal calendar
-  events with upcoming scheduled automation runs, and to record new events
+  schedule with `orca calendar agenda --json`, which merges personal and
+  imported calendar events with upcoming scheduled automation runs, and to
+  record new events
   with `orca calendar add` and remove them with `orca calendar remove`. Use
   when you need to know what is on the user's schedule before planning work,
   when reporting on a time window, or when the user asks you to note

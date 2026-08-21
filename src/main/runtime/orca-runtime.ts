@@ -694,12 +694,7 @@ import { RuntimeEmulatorCommands } from './orca-runtime-emulator'
 import type { EmulatorBridge } from '../emulator/emulator-bridge'
 import { getRuntimeFileTargetExecutionHostId, RuntimeFileCommands } from './orca-runtime-files'
 import { RuntimeGitCommands } from './orca-runtime-git'
-import {
-  mapCachedGoogleEventsForAgenda,
-  RuntimeGoogleCalendarCommands
-} from './orca-runtime-google-calendar'
-import { GOOGLE_ACCOUNT_ID } from '../google-calendar/google-calendar-sync'
-import { readGoogleCalendarCache } from '../google-calendar/google-calendar-cache'
+import { RuntimeGoogleCalendarCommands } from './orca-runtime-google-calendar'
 import {
   activateClientSessionTabSelection,
   ClientSessionTabSelectionStore,
@@ -4082,12 +4077,13 @@ export class OrcaRuntimeService {
     this.store?.deleteCalendarEvent?.(id)
   }
 
-  buildCalendarAgenda(from: number, to: number): CalendarAgenda {
-    const cache = readGoogleCalendarCache(GOOGLE_ACCOUNT_ID)
-    const selected = this.getGoogleSelectedCalendarIds()
+  // Why: async because reading an agenda is what refreshes a stale Google cache
+  // (staleness-on-access) — a 3am `orca calendar agenda` must not serve whatever
+  // the last settings visit happened to leave on disk.
+  async buildCalendarAgenda(from: number, to: number): Promise<CalendarAgenda> {
     return buildCalendarAgendaFrom({
       events: this.listCalendarEvents(),
-      externalEvents: mapCachedGoogleEventsForAgenda(cache, selected),
+      externalEvents: await this.googleCalendarCommands.listGoogleAgendaEvents(),
       automations: this.listAutomations(),
       from,
       to

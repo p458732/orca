@@ -279,3 +279,52 @@ describe('syncGoogleCalendars — refreshes ahead of expiry (fix round 1)', () =
     expect(refreshAccessToken).toHaveBeenCalled()
   })
 })
+
+describe('syncGoogleCalendars — a disconnect mid-sync must not resurrect the account', () => {
+  it('does not write the cache when the tokens were cleared while the fetch was in flight', async () => {
+    let connected = true
+    const writeCache = vi.fn()
+    const deps = baseDeps({
+      writeCache,
+      loadTokens: vi.fn(() => (connected ? VALID_TOKENS : null)),
+      // Simulates the user pressing Disconnect while this fetch is outstanding.
+      listEvents: vi.fn(async ({ calendarId }: { calendarId: string }) => {
+        connected = false
+        return [sampleEvent(calendarId)]
+      })
+    })
+    const outcome = await syncGoogleCalendars(deps)
+    expect(writeCache).not.toHaveBeenCalled()
+    expect(outcome.status).toBe('failed')
+    expect(outcome.reason).toBe('not_connected')
+  })
+
+  it('still writes the cache for an account that is still connected', async () => {
+    const writeCache = vi.fn()
+    const outcome = await syncGoogleCalendars(baseDeps({ writeCache }))
+    expect(outcome.status).toBe('synced')
+    expect(writeCache).toHaveBeenCalledWith(
+      expect.objectContaining({ accountId: 'default', syncedAt: NOW })
+    )
+  })
+})
+
+describe('isGoogleCacheStale — a newly ticked calendar is not covered by a fresh cache', () => {
+  it('is stale when a selected calendar has no cache entry, however recent the sync', () => {
+    expect(isGoogleCacheStale(FRESH_CACHE, NOW, ['cal-1', 'cal-2'])).toBe(true)
+  })
+
+  it('stays fresh when every selected calendar is already cached', () => {
+    expect(isGoogleCacheStale(FRESH_CACHE, NOW, ['cal-1'])).toBe(false)
+  })
+
+  it('fetches a calendar ticked since the last sync without waiting out the five minutes', async () => {
+    const deps = baseDeps({
+      readCache: vi.fn(() => FRESH_CACHE),
+      selectedCalendarIds: ['cal-1', 'cal-2']
+    })
+    const outcome = await syncGoogleCalendars(deps)
+    expect(outcome.status).toBe('synced')
+    expect(deps.listEvents).toHaveBeenCalledWith(expect.objectContaining({ calendarId: 'cal-2' }))
+  })
+})

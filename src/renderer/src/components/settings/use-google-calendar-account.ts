@@ -102,6 +102,11 @@ export function useGoogleCalendarAccount(): GoogleCalendarAccount {
       setAvailability('available')
       setStatus(next)
       setSelectedIds(next.selectedCalendarIds)
+      // Why: the host persists this, so a grant that died overnight offers repair
+      // on the first render instead of only after a manual sync. Only ever raises
+      // the flag — connect/disconnect lower it explicitly before refreshing, and a
+      // host predating the field must not clear a failure just observed live.
+      setNeedsReconnect((current) => current || next.lastSyncFailure === 'auth_revoked')
       return next
     } catch (error) {
       if (mountedRef.current) {

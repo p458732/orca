@@ -14,6 +14,10 @@ import {
   type GoogleCalendarCache
 } from '../google-calendar/google-calendar-cache'
 import {
+  refreshGoogleCacheForAgenda,
+  type GoogleAgendaRefreshDeps
+} from '../google-calendar/google-calendar-agenda-refresh'
+import {
   GOOGLE_ACCOUNT_ID,
   GOOGLE_TOKEN_EXPIRY_BUFFER_MS,
   syncGoogleCalendars,
@@ -43,6 +47,9 @@ export type GoogleCalendarStatus = {
   accountEmail: string | null
   syncedAt: number | null
   selectedCalendarIds: string[]
+  /** Reason the last sync failed, persisted so a grant that died overnight is
+   *  visible on the next launch instead of after the user presses Sync now. */
+  lastSyncFailure: string | null
 }
 
 export type RuntimeGoogleCalendarCommandHost = {
@@ -65,6 +72,7 @@ export type RuntimeGoogleCalendarDeps = {
   listCalendars: typeof listGoogleCalendars
   runSync: (args: GoogleCalendarSyncArgs) => Promise<GoogleSyncOutcome>
   getConfig: () => GoogleOAuthConfig
+  refreshForAgenda: typeof refreshGoogleCacheForAgenda
 }
 
 const DEFAULT_DEPS: RuntimeGoogleCalendarDeps = {
@@ -79,7 +87,8 @@ const DEFAULT_DEPS: RuntimeGoogleCalendarDeps = {
   refreshAccessToken: refreshGoogleAccessToken,
   listCalendars: listGoogleCalendars,
   runSync: syncGoogleCalendars,
-  getConfig: getGoogleOAuthConfig
+  getConfig: getGoogleOAuthConfig,
+  refreshForAgenda: refreshGoogleCacheForAgenda
 }
 
 // Why: the cache validates its envelope but not per-calendar contents, so a
@@ -137,8 +146,26 @@ export class RuntimeGoogleCalendarCommands {
       connected: tokens !== null,
       accountEmail: tokens?.accountEmail ?? null,
       syncedAt: cache?.syncedAt ?? null,
-      selectedCalendarIds: this.getGoogleSelectedCalendarIds()
+      selectedCalendarIds: this.getGoogleSelectedCalendarIds(),
+      lastSyncFailure: this.host.getSettings().googleCalendarLastSyncFailure ?? null
     }
+  }
+
+  /** Staleness-on-access for both agenda consumers (CLI and grid): the CLI is the
+   *  reason for the deadline inside refreshGoogleCacheForAgenda. */
+  async listGoogleAgendaEvents(
+    agendaDeps?: Partial<GoogleAgendaRefreshDeps>
+  ): Promise<CalendarEvent[]> {
+    const selectedCalendarIds = this.getGoogleSelectedCalendarIds()
+    const refresh = await this.deps.refreshForAgenda({
+      accountId: GOOGLE_ACCOUNT_ID,
+      selectedCalendarIds,
+      deps: agendaDeps
+    })
+    if (refresh.outcome) {
+      this.recordSyncOutcome(refresh.outcome)
+    }
+    return mapCachedGoogleEventsForAgenda(refresh.cache, selectedCalendarIds)
   }
 
   async connectGoogleCalendar(): Promise<{ accountEmail: string | null }> {
@@ -150,8 +177,26 @@ export class RuntimeGoogleCalendarCommands {
       codeVerifier: auth.codeVerifier,
       redirectUri: auth.redirectUri
     })
-    this.deps.saveTokens(GOOGLE_ACCOUNT_ID, tokens)
-    return { accountEmail: tokens.accountEmail }
+    const accountEmail = await this.readPrimaryCalendarAddress(tokens.accessToken)
+    this.deps.saveTokens(GOOGLE_ACCOUNT_ID, { ...tokens, accountEmail })
+    this.host.updateSettings({ googleCalendarLastSyncFailure: null })
+    return { accountEmail }
+  }
+
+  // Why: Google's token response carries no identity, but the primary calendar's
+  // id IS the account address — without it the connected row renders blank and a
+  // user who authorised the wrong account cannot tell. Never fails the connect:
+  // the account is usable unlabelled.
+  private async readPrimaryCalendarAddress(accessToken: string | null): Promise<string | null> {
+    if (!accessToken) {
+      return null
+    }
+    try {
+      const calendars = await this.deps.listCalendars({ accessToken })
+      return calendars.find((calendar) => calendar.primary)?.id ?? null
+    } catch {
+      return null
+    }
   }
 
   // Why: revocation failing must never trap the user in a connected state —
@@ -168,6 +213,12 @@ export class RuntimeGoogleCalendarCommands {
     }
     this.deps.clearTokens(GOOGLE_ACCOUNT_ID)
     this.deps.clearCache(GOOGLE_ACCOUNT_ID)
+    // Why: a selection outliving the account would re-populate the grid and the
+    // agent's agenda from any cache a sync still in flight manages to write.
+    this.host.updateSettings({
+      googleCalendarSelectedIds: [],
+      googleCalendarLastSyncFailure: null
+    })
     return { revoked }
   }
 
@@ -181,11 +232,22 @@ export class RuntimeGoogleCalendarCommands {
   }
 
   async syncGoogleCalendarNow(): Promise<GoogleSyncOutcome> {
-    return this.deps.runSync({
+    const outcome = await this.deps.runSync({
       accountId: GOOGLE_ACCOUNT_ID,
       selectedCalendarIds: this.getGoogleSelectedCalendarIds(),
       force: true
     })
+    this.recordSyncOutcome(outcome)
+    return outcome
+  }
+
+  // Why: in-memory state dies with the process; the pane must be able to offer
+  // reconnect on the next launch without first running a sync.
+  private recordSyncOutcome(outcome: GoogleSyncOutcome): void {
+    const failure = outcome.status === 'failed' ? outcome.reason : null
+    if ((this.host.getSettings().googleCalendarLastSyncFailure ?? null) !== failure) {
+      this.host.updateSettings({ googleCalendarLastSyncFailure: failure })
+    }
   }
 
   private async ensureFreshAccessToken(tokens: GoogleStoredTokens): Promise<string> {

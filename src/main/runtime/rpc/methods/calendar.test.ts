@@ -15,7 +15,7 @@ function methodNamed(name: string) {
 
 function makeRuntime() {
   return {
-    buildCalendarAgenda: vi.fn(() => ({ entries: [], truncated: false })),
+    buildCalendarAgenda: vi.fn(async () => ({ entries: [], truncated: false })),
     createCalendarEvent: vi.fn((input) => ({ id: 'evt-1', ...input })),
     deleteCalendarEvent: vi.fn()
   } as unknown as OrcaRuntimeService
@@ -42,7 +42,7 @@ describe('calendar rpc methods', () => {
   // a genuinely quiet week.
   it('agenda passes the truncation flag through to the client', async () => {
     const runtime = makeRuntime()
-    runtime.buildCalendarAgenda = vi.fn(() => ({ entries: [], truncated: true }))
+    runtime.buildCalendarAgenda = vi.fn(async () => ({ entries: [], truncated: true }))
     const method = methodNamed('calendar.agenda')
     const params = method.params?.parse({ from: BASE, to: BASE + HOUR })
     expect(await method.handler(params, { runtime })).toEqual({ entries: [], truncated: true })

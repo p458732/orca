@@ -318,3 +318,33 @@ describe('CalendarSettingsPane', () => {
     expect(mocks.openCalendarPage).toHaveBeenCalledOnce()
   })
 })
+
+// Why finding 4: needsReconnect used to live only in memory, so after a relaunch
+// the pane showed "connected" with an old last-synced time and no way to repair.
+describe('CalendarSettingsPane — a grant that died before this launch', () => {
+  beforeEach(() => {
+    for (const mock of Object.values(mocks)) {
+      mock.mockReset()
+    }
+    mocks.listCalendars.mockResolvedValue([{ id: 'work', summary: 'Work', primary: true }])
+  })
+
+  afterEach(cleanup)
+
+  it('offers reconnect on first render from the host’s persisted failure', async () => {
+    mocks.fetchStatus.mockResolvedValue({
+      ...connectedStatus(),
+      lastSyncFailure: 'auth_revoked'
+    })
+    renderPane()
+    expect(await screen.findByRole('button', { name: 'Reconnect' })).toBeInTheDocument()
+    expect(mocks.syncNow).not.toHaveBeenCalled()
+  })
+
+  it('leaves the pane alone when the last sync succeeded', async () => {
+    mocks.fetchStatus.mockResolvedValue({ ...connectedStatus(), lastSyncFailure: null })
+    renderPane()
+    await screen.findByText('person@example.com')
+    expect(screen.queryByRole('button', { name: 'Reconnect' })).not.toBeInTheDocument()
+  })
+})

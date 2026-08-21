@@ -20,6 +20,7 @@ vi.mock('electron', () => ({
 }))
 
 import { beginGoogleOAuthFlow, buildGoogleAuthorizeUrl } from './google-oauth-pkce'
+import { OAUTH_LOOPBACK_CALLBACK_RESPONSE_HEADERS } from '../oauth-loopback/oauth-loopback-callback-page'
 
 function params(url: string): URLSearchParams {
   return new URL(url).searchParams
@@ -115,5 +116,24 @@ describe('beginGoogleOAuthFlow', () => {
     const error = await outcome
     expect(error).toBeInstanceOf(Error)
     expect((error as Error).message).toBe('google_calendar_auth_timeout')
+  })
+})
+
+// Why: this flow used to carry its own byte-identical copy of the CSP header set.
+// Serving the shared object is what stops the two copies drifting apart.
+describe('google loopback callback response', () => {
+  beforeEach(() => {
+    openedUrl = ''
+  })
+
+  it('serves the shared loopback security headers verbatim', async () => {
+    const pending = beginGoogleOAuthFlow(CONFIG)
+    await vi.waitFor(() => expect(openedUrl).not.toBe(''))
+    const state = new URL(openedUrl).searchParams.get('state')
+    const response = await fetch(`${redirectUriFrom(openedUrl)}?code=hdr-code&state=${state}`)
+    for (const [name, value] of Object.entries(OAUTH_LOOPBACK_CALLBACK_RESPONSE_HEADERS)) {
+      expect(response.headers.get(name)).toBe(value)
+    }
+    expect(await pending).toMatchObject({ code: 'hdr-code' })
   })
 })

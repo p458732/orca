@@ -105,7 +105,8 @@ describe('RuntimeGoogleCalendarCommands', () => {
       connected: false,
       accountEmail: null,
       syncedAt: null,
-      selectedCalendarIds: []
+      selectedCalendarIds: [],
+      lastSyncFailure: null
     })
   })
 
@@ -126,7 +127,8 @@ describe('RuntimeGoogleCalendarCommands', () => {
       connected: true,
       accountEmail: 'me@example.com',
       syncedAt: 42,
-      selectedCalendarIds: ['primary']
+      selectedCalendarIds: ['primary'],
+      lastSyncFailure: null
     })
   })
 
@@ -149,8 +151,9 @@ describe('RuntimeGoogleCalendarCommands', () => {
         refreshToken: 'refresh-1',
         accessToken: 'access-1',
         accessTokenExpiresAt: 9999,
-        accountEmail: 'me@example.com'
+        accountEmail: null
       })),
+      listCalendars: vi.fn(async () => [{ id: 'me@example.com', summary: 'Me', primary: true }]),
       saveTokens
     })
     const result = await commands.connectGoogleCalendar()
@@ -260,6 +263,214 @@ describe('RuntimeGoogleCalendarCommands', () => {
         selectedCalendarIds: ['primary', 'work'],
         force: true
       })
+    )
+  })
+})
+
+// ─── Finding 1: an agenda request is what refreshes the cache ────────
+
+const GOOGLE_EVENT = {
+  id: 'google:cal-1:e1',
+  calendarId: 'cal-1',
+  title: 'Standup',
+  startAt: 1000,
+  endAt: 2000,
+  allDay: false,
+  notes: null,
+  responseStatus: null,
+  etag: null,
+  updatedAt: 500
+}
+
+const AGENDA_NOW = new Date(2026, 7, 20, 3, 0, 0).getTime()
+
+function cacheOf(syncedAt: number, events: unknown[] = []): GoogleCalendarCache {
+  return { accountId: 'default', syncedAt, calendars: { 'cal-1': events } } as GoogleCalendarCache
+}
+
+describe('RuntimeGoogleCalendarCommands — agenda access refreshes a stale cache', () => {
+  it('syncs on access and returns the freshly fetched events, with no Sync now press', async () => {
+    const commands = new RuntimeGoogleCalendarCommands(
+      makeHost({ googleCalendarSelectedIds: ['cal-1'] })
+    )
+    const readCache = vi
+      .fn()
+      .mockReturnValueOnce(cacheOf(AGENDA_NOW - 10 * 60 * 1000))
+      .mockReturnValueOnce(cacheOf(AGENDA_NOW, [GOOGLE_EVENT]))
+    const runSync = vi.fn(async () => ({
+      status: 'synced' as const,
+      syncedAt: AGENDA_NOW,
+      reason: null
+    }))
+    const events = await commands.listGoogleAgendaEvents({
+      readCache,
+      runSync,
+      now: () => AGENDA_NOW,
+      timeoutMs: 1000
+    })
+    expect(runSync).toHaveBeenCalledTimes(1)
+    expect(events.map((event) => event.id)).toEqual(['google:cal-1:e1'])
+  })
+
+  it('serves the cache untouched when it is still fresh', async () => {
+    const commands = new RuntimeGoogleCalendarCommands(
+      makeHost({ googleCalendarSelectedIds: ['cal-1'] })
+    )
+    const runSync = vi.fn()
+    const events = await commands.listGoogleAgendaEvents({
+      readCache: () => cacheOf(AGENDA_NOW - 1000, [GOOGLE_EVENT]),
+      runSync,
+      now: () => AGENDA_NOW,
+      timeoutMs: 1000
+    })
+    expect(runSync).not.toHaveBeenCalled()
+    expect(events).toHaveLength(1)
+  })
+
+  it('still serves the existing cache when the refresh fails', async () => {
+    const commands = new RuntimeGoogleCalendarCommands(
+      makeHost({ googleCalendarSelectedIds: ['cal-1'] })
+    )
+    const events = await commands.listGoogleAgendaEvents({
+      readCache: () => cacheOf(AGENDA_NOW - 10 * 60 * 1000, [GOOGLE_EVENT]),
+      runSync: async () => ({ status: 'failed', syncedAt: null, reason: 'network_error' }),
+      now: () => AGENDA_NOW,
+      timeoutMs: 1000
+    })
+    expect(events).toHaveLength(1)
+  })
+})
+
+// ─── Finding 3: a disconnect must not leave the selection behind ─────
+
+describe('RuntimeGoogleCalendarCommands — disconnect clears everything the grid reads', () => {
+  it('clears the ticked calendar selection so a late cache write cannot repopulate the agenda', async () => {
+    const host = makeHost({ googleCalendarSelectedIds: ['cal-1', 'cal-2'] })
+    const commands = new RuntimeGoogleCalendarCommands(host, {
+      loadTokens: () => null,
+      clearTokens: vi.fn(),
+      clearCache: vi.fn()
+    })
+    await commands.disconnectGoogleCalendar()
+    expect(commands.getGoogleSelectedCalendarIds()).toEqual([])
+    const events = await commands.listGoogleAgendaEvents({
+      readCache: () => cacheOf(AGENDA_NOW, [GOOGLE_EVENT]),
+      runSync: vi.fn(),
+      now: () => AGENDA_NOW,
+      timeoutMs: 1000
+    })
+    expect(events).toEqual([])
+  })
+})
+
+// ─── Finding 4: a dead grant must survive a relaunch ─────────────────
+
+describe('RuntimeGoogleCalendarCommands — the last sync failure is persisted', () => {
+  it('reports a failure recorded by an earlier process, before any sync runs', () => {
+    const commands = new RuntimeGoogleCalendarCommands(
+      makeHost({ googleCalendarLastSyncFailure: 'auth_revoked' }),
+      { loadTokens: () => null, readCache: () => null }
+    )
+    expect(commands.getGoogleCalendarStatus().lastSyncFailure).toBe('auth_revoked')
+  })
+
+  it('records the reason a manual sync failed', async () => {
+    const host = makeHost({ googleCalendarSelectedIds: ['cal-1'] })
+    const commands = new RuntimeGoogleCalendarCommands(host, {
+      loadTokens: () => null,
+      readCache: () => null,
+      runSync: async () => ({ status: 'failed', syncedAt: null, reason: 'auth_revoked' })
+    })
+    await commands.syncGoogleCalendarNow()
+    expect(commands.getGoogleCalendarStatus().lastSyncFailure).toBe('auth_revoked')
+  })
+
+  it('records a failure hit on the unattended agenda path too', async () => {
+    const host = makeHost({ googleCalendarSelectedIds: ['cal-1'] })
+    const commands = new RuntimeGoogleCalendarCommands(host, {
+      loadTokens: () => null,
+      readCache: () => null
+    })
+    await commands.listGoogleAgendaEvents({
+      readCache: () => cacheOf(AGENDA_NOW - 10 * 60 * 1000),
+      runSync: async () => ({ status: 'failed', syncedAt: null, reason: 'auth_revoked' }),
+      now: () => AGENDA_NOW,
+      timeoutMs: 1000
+    })
+    expect(commands.getGoogleCalendarStatus().lastSyncFailure).toBe('auth_revoked')
+  })
+
+  it('clears the recorded failure once a sync succeeds', async () => {
+    const host = makeHost({
+      googleCalendarSelectedIds: ['cal-1'],
+      googleCalendarLastSyncFailure: 'auth_revoked'
+    })
+    const commands = new RuntimeGoogleCalendarCommands(host, {
+      loadTokens: () => null,
+      readCache: () => null,
+      runSync: async () => ({ status: 'synced', syncedAt: 1, reason: null })
+    })
+    await commands.syncGoogleCalendarNow()
+    expect(commands.getGoogleCalendarStatus().lastSyncFailure).toBeNull()
+  })
+})
+
+// ─── Finding 6: the connected account row must not be blank ──────────
+
+describe('RuntimeGoogleCalendarCommands — connect labels the account', () => {
+  const CONNECT_DEPS = {
+    getConfig: () => ({
+      clientId: 'id',
+      authorizeEndpoint: 'a',
+      tokenEndpoint: 't',
+      revokeEndpoint: 'r',
+      scope: 's'
+    }),
+    beginOAuthFlow: async () => ({
+      code: 'code-1',
+      codeVerifier: 'verifier-1',
+      redirectUri: 'http://127.0.0.1:1/auth/callback'
+    }),
+    exchangeCode: vi.fn(async () => ({
+      refreshToken: 'refresh-1',
+      accessToken: 'access-1',
+      accessTokenExpiresAt: 9999,
+      accountEmail: null
+    }))
+  }
+
+  it('takes the account address from the primary calendar and stores it', async () => {
+    const saveTokens = vi.fn()
+    const commands = new RuntimeGoogleCalendarCommands(makeHost(), {
+      ...CONNECT_DEPS,
+      saveTokens,
+      listCalendars: async () => [
+        { id: 'work', summary: 'Work', primary: false },
+        { id: 'someone@example.com', summary: 'Me', primary: true }
+      ]
+    })
+    expect(await commands.connectGoogleCalendar()).toEqual({
+      accountEmail: 'someone@example.com'
+    })
+    expect(saveTokens).toHaveBeenCalledWith(
+      'default',
+      expect.objectContaining({ accountEmail: 'someone@example.com' })
+    )
+  })
+
+  it('still connects when the calendar list cannot be read', async () => {
+    const saveTokens = vi.fn()
+    const commands = new RuntimeGoogleCalendarCommands(makeHost(), {
+      ...CONNECT_DEPS,
+      saveTokens,
+      listCalendars: async () => {
+        throw new Error('offline')
+      }
+    })
+    expect(await commands.connectGoogleCalendar()).toEqual({ accountEmail: null })
+    expect(saveTokens).toHaveBeenCalledWith(
+      'default',
+      expect.objectContaining({ refreshToken: 'refresh-1' })
     )
   })
 })

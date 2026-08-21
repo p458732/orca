@@ -215,3 +215,39 @@ describe('toCalendarEvent', () => {
     expect(event.endAt).toBe(google!.endAt)
   })
 })
+
+// Why: Google's exclusive end.date must step back one CALENDAR day — a 23-hour
+// spring-forward day made `- DAY_MS` drop the final day of the trip entirely.
+describe('mapGoogleEvent — all-day events across a DST boundary', () => {
+  function allDay(startDate: string, endDate: string) {
+    return mapGoogleEvent(
+      {
+        id: 'evt-dst',
+        status: 'confirmed',
+        summary: 'Trip',
+        start: { date: startDate },
+        end: { date: endDate },
+        updated: '2026-03-01T00:00:00.000Z'
+      },
+      CAL
+    )
+  }
+
+  it('keeps the last day of a Fri–Sun trip that crosses spring forward', () => {
+    const event = allDay('2026-03-06', '2026-03-09')
+    expect(event?.startAt).toBe(new Date(2026, 2, 6).getTime())
+    expect(event?.endAt).toBe(new Date(2026, 2, 8, 23, 59, 59, 999).getTime())
+  })
+
+  it('maps a single all-day event on the spring-forward day to that day alone', () => {
+    const event = allDay('2026-03-08', '2026-03-09')
+    expect(event?.startAt).toBe(new Date(2026, 2, 8).getTime())
+    expect(event?.endAt).toBe(new Date(2026, 2, 8, 23, 59, 59, 999).getTime())
+  })
+
+  it('keeps the last day of a span that crosses fall back', () => {
+    const event = allDay('2026-10-30', '2026-11-02')
+    expect(event?.startAt).toBe(new Date(2026, 9, 30).getTime())
+    expect(event?.endAt).toBe(new Date(2026, 10, 1, 23, 59, 59, 999).getTime())
+  })
+})

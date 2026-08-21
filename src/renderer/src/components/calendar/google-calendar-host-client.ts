@@ -15,6 +15,9 @@ export type GoogleCalendarStatus = {
   accountEmail: string | null
   syncedAt: number | null
   selectedCalendarIds: string[]
+  /** Reason the host's last sync failed. Survives a relaunch, so a grant that
+   *  died overnight is visible without the user pressing Sync now first. */
+  lastSyncFailure: string | null
 }
 
 export type GoogleSyncOutcome = {
@@ -34,7 +37,9 @@ export async function fetchGoogleCalendarStatus(): Promise<GoogleCalendarStatus>
     connected: result.connected === true,
     accountEmail: result.accountEmail ?? null,
     syncedAt: typeof result.syncedAt === 'number' ? result.syncedAt : null,
-    selectedCalendarIds: result.selectedCalendarIds ?? []
+    selectedCalendarIds: result.selectedCalendarIds ?? [],
+    // A host predating the persisted failure answers without this field.
+    lastSyncFailure: result.lastSyncFailure ?? null
   }
 }
 

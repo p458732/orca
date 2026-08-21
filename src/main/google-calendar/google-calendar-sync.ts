@@ -37,8 +37,17 @@ export type GoogleSyncOutcome = {
 
 // Why: a future syncedAt (clock skew) must read as fresh, not stale — a negative
 // age already fails the `>` check below, so no special-case branch is needed.
-export function isGoogleCacheStale(cache: GoogleCalendarCache | null, now: number): boolean {
+export function isGoogleCacheStale(
+  cache: GoogleCalendarCache | null,
+  now: number,
+  selectedCalendarIds: readonly string[] = []
+): boolean {
   if (!cache) {
+    return true
+  }
+  // Why: a just-ticked calendar has no entry at all, so age alone would call the
+  // cache fresh and the user would see nothing for the next five minutes.
+  if (selectedCalendarIds.some((calendarId) => !(calendarId in cache.calendars))) {
     return true
   }
   return now - cache.syncedAt > GOOGLE_SYNC_STALE_AFTER_MS
@@ -135,7 +144,7 @@ async function performSync(args: GoogleCalendarSyncArgs): Promise<GoogleSyncOutc
   const cache = readCache(accountId)
   const existingSyncedAt = cache?.syncedAt ?? null
 
-  if (!args.force && !isGoogleCacheStale(cache, now)) {
+  if (!args.force && !isGoogleCacheStale(cache, now, args.selectedCalendarIds)) {
     return { status: 'skipped_fresh', syncedAt: existingSyncedAt, reason: null }
   }
 
@@ -183,6 +192,12 @@ async function performSync(args: GoogleCalendarSyncArgs): Promise<GoogleSyncOutc
       })
     }
 
+    // Why: a disconnect can land while the fetch is in flight — writing here would
+    // resurrect the account's events in the grid and the agent's agenda after the
+    // user removed it, with the pane still saying "not connected".
+    if (!loadTokens(accountId)) {
+      return { status: 'failed', syncedAt: existingSyncedAt, reason: 'not_connected' }
+    }
     writeCache({ accountId, syncedAt: now, calendars })
     return { status: 'synced', syncedAt: now, reason: null }
   } catch (err) {
