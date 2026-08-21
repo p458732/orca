@@ -11,7 +11,15 @@ vi.mock('electron', () => ({
   safeStorage: {
     isEncryptionAvailable: () => encryptionAvailable,
     encryptString: (value: string) => Buffer.from(`enc:${value}`),
-    decryptString: (buffer: Buffer) => buffer.toString().replace(/^enc:/, '')
+    // Why: real safeStorage throws on bytes it didn't produce; a mock that
+    // always succeeds can't expose a read path that skips the real decrypt attempt.
+    decryptString: (buffer: Buffer) => {
+      const text = buffer.toString()
+      if (!text.startsWith('enc:')) {
+        throw new Error('bad ciphertext')
+      }
+      return text.slice('enc:'.length)
+    }
   }
 }))
 
@@ -46,6 +54,18 @@ describe('google token store', () => {
 
   it('still stores when safeStorage encryption is unavailable', () => {
     encryptionAvailable = false
+    saveGoogleTokens('acct', TOKENS)
+    expect(loadGoogleTokens('acct')).toEqual(TOKENS)
+  })
+
+  it('reads a plaintext save after encryption becomes available (regression)', () => {
+    encryptionAvailable = false
+    saveGoogleTokens('acct', TOKENS)
+    encryptionAvailable = true
+    expect(loadGoogleTokens('acct')).toEqual(TOKENS)
+  })
+
+  it('reads an encrypted save when encryption stays available', () => {
     saveGoogleTokens('acct', TOKENS)
     expect(loadGoogleTokens('acct')).toEqual(TOKENS)
   })

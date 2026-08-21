@@ -55,6 +55,20 @@ export function saveGoogleTokens(accountId: string, tokens: GoogleStoredTokens):
   writeEncryptedTokens(getGoogleTokenPath(accountId), JSON.stringify(tokens))
 }
 
+// Why: ciphertext-vs-plaintext was decided at write time, which can differ
+// from now (e.g. Linux keyring absent at save, present at read) — try
+// decrypt first, only fall back to plaintext on failure.
+function decodeStoredTokens(raw: Buffer): string {
+  if (safeStorage.isEncryptionAvailable()) {
+    try {
+      return safeStorage.decryptString(raw)
+    } catch {
+      return raw.toString('utf-8')
+    }
+  }
+  return raw.toString('utf-8')
+}
+
 // Why: a refresh token must never surface in an error — any read failure
 // (missing file, corrupt bytes, undecryptable ciphertext) yields null.
 export function loadGoogleTokens(accountId: string): GoogleStoredTokens | null {
@@ -64,9 +78,7 @@ export function loadGoogleTokens(accountId: string): GoogleStoredTokens | null {
   }
   try {
     const raw = readFileSync(path)
-    const serialized = safeStorage.isEncryptionAvailable()
-      ? safeStorage.decryptString(raw)
-      : raw.toString('utf-8')
+    const serialized = decodeStoredTokens(raw)
     const parsed: unknown = JSON.parse(serialized)
     return isGoogleStoredTokens(parsed) ? parsed : null
   } catch {
