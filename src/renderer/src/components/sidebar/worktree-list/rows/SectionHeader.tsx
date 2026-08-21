@@ -14,6 +14,7 @@ import type {
 } from '../../../../../../shared/worktree/types'
 import type { GroupHeaderRow, WorktreeGroupBy } from '../grouping/row-types'
 import { PINNED_GROUP_KEY } from '../grouping/group-keys'
+import { DIRECTORY_GROUP_PREFIX } from '../grouping/directory-grouping'
 import { getWorkspaceStatusFromGroupKey } from '../../workspace-status'
 import { getVirtualRowTransform } from '../viewport/virtual-rows'
 import { resolveProjectGroupHeaderColor } from '../../project-header-color'
@@ -87,8 +88,9 @@ export function renderWorktreeSectionHeaderRow(args: {
   const { headerDrag } = ctx
   const isRepoHeader = ctx.groupBy === 'repo' && row.repo !== undefined
   const isProjectGroupHeader = ctx.groupBy === 'repo' && row.projectGroup !== undefined
-  // Why: directory grouping nests headers by real filesystem depth, same as project groups.
-  const isDirectoryHeader = ctx.groupBy === 'directory'
+  // Why row-scoped, not mode-scoped: keeps this specific to directory headers so
+  // a future non-directory row emitted in directory mode doesn't inherit its chrome.
+  const isDirectoryHeader = row.key.startsWith(DIRECTORY_GROUP_PREFIX)
   const projectIdForHeader = isRepoHeader ? row.repo!.id : undefined
   const projectGroupIdForHeader =
     isProjectGroupHeader && !row.repo && typeof row.projectGroup?.id === 'string'

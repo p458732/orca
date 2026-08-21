@@ -87,7 +87,8 @@ export function useEffectiveCollapsedGroups(args: {
         workspaceStatuses,
         settings,
         projectGroups,
-        projectGrouping
+        projectGrouping,
+        defaultHostId
       )) {
         next.delete(groupKey)
       }
