@@ -90,10 +90,14 @@ function collectAutomationEntries(
   return { entries, truncated }
 }
 
-/** Events are taken first and automation expansion only gets what is left, so a
- *  busy automation can never push a user's own event out of the agenda. */
+/** Events are taken first, then external events, and automation expansion only
+ *  gets what is left, so a busy provider or automation can never push a user's
+ *  own event out of the agenda. */
 export function buildCalendarAgenda(args: {
   events: readonly CalendarEvent[]
+  /** Provider-sourced events (already mapped). Budgeted AFTER the user's own so a
+   *  busy external calendar can never evict something the user wrote. */
+  externalEvents?: readonly CalendarEvent[]
   automations: readonly Automation[]
   from: number
   to: number
@@ -103,16 +107,21 @@ export function buildCalendarAgenda(args: {
   }
   const matchedEvents = collectEventEntries(args.events, args.from, args.to)
   const eventEntries = matchedEvents.slice(0, AGENDA_MAX_ENTRIES)
+  const matchedExternal = collectEventEntries(args.externalEvents ?? [], args.from, args.to)
+  const externalEntries = matchedExternal.slice(0, AGENDA_MAX_ENTRIES - eventEntries.length)
   const automations = collectAutomationEntries(
     args.automations,
     args.from,
     args.to,
-    AGENDA_MAX_ENTRIES - eventEntries.length
+    AGENDA_MAX_ENTRIES - eventEntries.length - externalEntries.length
   )
-  const entries = [...eventEntries, ...automations.entries]
+  const entries = [...eventEntries, ...externalEntries, ...automations.entries]
   entries.sort((left, right) => left.startAt - right.startAt)
   return {
     entries,
-    truncated: matchedEvents.length > eventEntries.length || automations.truncated
+    truncated:
+      matchedEvents.length > eventEntries.length ||
+      matchedExternal.length > externalEntries.length ||
+      automations.truncated
   }
 }

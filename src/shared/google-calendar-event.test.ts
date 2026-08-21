@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildGoogleEventId, mapGoogleEvent } from './google-calendar-event'
+import { buildGoogleEventId, mapGoogleEvent, toCalendarEvent } from './google-calendar-event'
 
 const CAL = 'primary@example.com'
 
@@ -191,5 +191,27 @@ describe('mapGoogleEvent — deeper malformed-input paths', () => {
       CAL
     )
     expect(event).toBeNull()
+  })
+})
+
+describe('toCalendarEvent', () => {
+  it('produces a CalendarEvent tagged as google', () => {
+    const google = mapGoogleEvent(
+      {
+        id: 'evtC',
+        status: 'confirmed',
+        summary: 'Review',
+        start: { dateTime: '2026-08-20T09:00:00+08:00' },
+        end: { dateTime: '2026-08-20T10:00:00+08:00' },
+        updated: '2026-08-19T00:00:00.000Z'
+      },
+      CAL
+    )
+    const event = toCalendarEvent(google!)
+    expect(event.source).toBe('google')
+    expect(event.id).toBe(google!.id)
+    expect(event.title).toBe('Review')
+    expect(event.startAt).toBe(google!.startAt)
+    expect(event.endAt).toBe(google!.endAt)
   })
 })

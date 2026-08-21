@@ -1,6 +1,6 @@
-/** Calendar event sources. 'local' is the only prototype provider; adding
- *  'google' later must not require migrating stored events. */
-export const CALENDAR_EVENT_SOURCES = ['local'] as const
+/** Calendar event sources. 'google' events are provider-fetched, never persisted
+ *  the way 'local' events are — see toCalendarEvent in google-calendar-event.ts. */
+export const CALENDAR_EVENT_SOURCES = ['local', 'google'] as const
 
 export type CalendarEventSource = (typeof CALENDAR_EVENT_SOURCES)[number]
 

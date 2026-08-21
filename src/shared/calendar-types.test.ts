@@ -26,7 +26,7 @@ describe('isCalendarEvent', () => {
   })
 
   it('rejects an unknown source so a newer build cannot silently downgrade', () => {
-    expect(isCalendarEvent(makeEvent({ source: 'google' }))).toBe(false)
+    expect(isCalendarEvent(makeEvent({ source: 'outlook' }))).toBe(false)
   })
 
   it('rejects non-object values', () => {

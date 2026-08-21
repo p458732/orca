@@ -1,4 +1,5 @@
 import { DAY_MS, normalizeAllDaySpan } from './calendar-day-span'
+import type { CalendarEvent } from './calendar-types'
 
 export const GOOGLE_EVENT_ID_PREFIX = 'google'
 
@@ -95,5 +96,21 @@ export function mapGoogleEvent(raw: unknown, calendarId: string): GoogleCalendar
     responseStatus: readSelfResponseStatus(event),
     etag: typeof event.etag === 'string' ? event.etag : null,
     updatedAt: Number.isNaN(updated) ? 0 : updated
+  }
+}
+
+/** Drops provider-only fields; the cache keeps the richer shape so adding UI for
+ *  responseStatus later needs no refetch. */
+export function toCalendarEvent(event: GoogleCalendarEvent): CalendarEvent {
+  return {
+    id: event.id,
+    title: event.title,
+    startAt: event.startAt,
+    endAt: event.endAt,
+    allDay: event.allDay,
+    notes: event.notes,
+    source: 'google',
+    createdAt: event.updatedAt,
+    updatedAt: event.updatedAt
   }
 }
