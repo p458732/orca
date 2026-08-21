@@ -4,8 +4,10 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import type { VirtualItem } from '@tanstack/react-virtual'
 import type { GroupHeaderRow } from '../grouping/row-types'
+import { PINNED_GROUP_KEY } from '../grouping/group-keys'
 import type { WorktreeSidebarHeaderDrag } from '../drag/use-header-drag'
 import type { RepoHeaderProjectActions } from './repo-header-project-actions'
+import { WORKTREE_SECTION_HEADER_PADDING_LEFT } from './indentation'
 import { renderWorktreeSectionHeaderRow, type SectionHeaderRowContext } from './SectionHeader'
 
 // Why: directory headers never touch repo/project-group drag bookkeeping at
@@ -124,8 +126,16 @@ describe('renderWorktreeSectionHeaderRow directory mode', () => {
     expect(collapsed).toContain('aria-expanded="false"')
   })
 
-  it('omits the collapse affordance when the directory header has no worktrees', () => {
-    const markup = renderHeader(makeDirectoryHeaderRow({ count: 0 }))
-    expect(markup).not.toContain('data-repo-header-collapse-affordance=""')
+  // Why not "count: 0": every directory node exists only as an ancestor of some
+  // worktree, so collectSubtreeWorktrees roll-up guarantees count >= 1 — a
+  // count-0 directory header cannot occur (see directory-group-sections.ts).
+
+  it('does not apply directory indentation to a non-directory header rendered in directory mode', () => {
+    // Why: isDirectoryHeader must key off the row's own dir: prefix, not ctx.groupBy,
+    // or a header like Pinned (which also renders through directory mode) would
+    // silently inherit directory chrome once it carries a projectGroupDepth.
+    const pinnedRow = makeDirectoryHeaderRow({ key: PINNED_GROUP_KEY, projectGroupDepth: 2 })
+    const markup = renderHeader(pinnedRow)
+    expect(paddingLeftOf(markup)).toBe(WORKTREE_SECTION_HEADER_PADDING_LEFT)
   })
 })

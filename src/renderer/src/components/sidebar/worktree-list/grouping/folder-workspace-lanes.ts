@@ -62,8 +62,10 @@ export function getFolderWorkspaceLaneKey(
       return getPRLaneKey('in-progress')
     case 'none':
       return ALL_GROUP_KEY
-    // Why: a folder workspace has no repo, so it has no grouping root to sit
-    // under; directory grouping renders it alongside the root worktrees.
+    // Why ALL_GROUP_KEY: a folder workspace has no repo, so it has no grouping
+    // root to sit under. This lane key is only consulted by the reveal path
+    // (navigation/folder-reveal.ts) — actual directory-mode emission happens in
+    // appendDirectorySections, which renders every folder workspace at the root.
     case 'directory':
       return ALL_GROUP_KEY
   }

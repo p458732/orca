@@ -60,6 +60,20 @@ describe('resolveWorktreeGroupingRoot', () => {
     const rootRepo: Repo = { ...repo, path: '/proj' }
     expect(resolveWorktreeGroupingRoot(rootRepo, makeSettings({ workspaceDir: '' }))).toBe('/')
   })
+
+  it('keeps the full UNC share root when the repo sits directly under it', () => {
+    const uncRepo: Repo = { ...repo, path: '//server/share' }
+    expect(resolveWorktreeGroupingRoot(uncRepo, makeSettings({ workspaceDir: '' }))).toBe(
+      '//server/share'
+    )
+  })
+
+  it('resolves the parent of a nested UNC path without truncating the share name', () => {
+    const uncRepo: Repo = { ...repo, path: '//server/share/proj/.em/repo' }
+    expect(resolveWorktreeGroupingRoot(uncRepo, makeSettings({ workspaceDir: '' }))).toBe(
+      '//server/share/proj/.em'
+    )
+  })
 })
 
 describe('getDirectoryGroupKey', () => {
@@ -253,5 +267,33 @@ describe('buildDirectoryGrouping', () => {
     })
     expect(grouping.nodes).toHaveLength(1)
     expect(grouping.nodes[0]).toMatchObject({ label: 'series.a', depth: 0, worktrees: [wt] })
+  })
+
+  // Pins the default Orca layout end-to-end: nestWorkspaces: true (the default,
+  // shared/constants.ts:175) with no worktreeBasePath — what most users see, not
+  // just the em worktreeBasePath: '../..' setup the other cases exercise.
+  it('groups a plain project (no worktreeBasePath) under one top-level group named after its repo folder', () => {
+    const plainRepo: Repo = {
+      id: 'repo-plain',
+      path: '/home/me/orca/workspaces/plain-proj/main',
+      displayName: 'plain-proj',
+      badgeColor: '#000000',
+      addedAt: 0
+    }
+    const featureX = makeWorktree('feature-x', '/home/me/orca/workspaces/plain-proj/feature-x', {
+      repoId: plainRepo.id
+    })
+    const grouping = buildDirectoryGrouping({
+      worktrees: [featureX],
+      repoMap: new Map([[plainRepo.id, plainRepo]]),
+      settings
+    })
+    expect(grouping.rootWorktrees).toEqual([])
+    expect(grouping.nodes).toHaveLength(1)
+    expect(grouping.nodes[0]).toMatchObject({
+      label: 'plain-proj',
+      depth: 0,
+      worktrees: [featureX]
+    })
   })
 })

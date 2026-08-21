@@ -135,7 +135,8 @@ export function expandGroupsForWorktreeReveal(
           args.workspaceStatuses,
           args.settings,
           args.projectGroups,
-          args.projectGrouping
+          args.projectGrouping,
+          args.defaultHostId
         )
   for (const groupKey of groupKeys) {
     if (args.collapsedGroups.has(groupKey)) {

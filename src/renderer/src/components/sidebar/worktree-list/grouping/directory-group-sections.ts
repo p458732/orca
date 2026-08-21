@@ -3,6 +3,7 @@ import type { DirectoryGrouping, DirectoryGroupNode } from './directory-grouping
 import type { RenderableFolderWorkspace } from './folder-workspace-lanes'
 import { compareFolderWorkspacesForDisplay } from './folder-workspace-lanes'
 import type { SectionAppendContext } from './group-sections'
+import { getLaneHostWorktreeCounts, getLaneHostWorktreeIds } from './host-labels'
 import { appendWorktreeRows, buildFolderWorkspaceRow } from './row-builders'
 
 /** Section key for headerless root-level rows. Deliberately not '' — an empty
@@ -35,6 +36,16 @@ function appendDirectoryNode(
     tone: 'text-foreground',
     icon: FolderTree,
     projectGroupDepth: depth,
+    // Why: without these, a header with no direct item row (a collapsed group,
+    // or an intermediate directory holding only subdirectories) has no host to
+    // attach to and gets flushed as an orphan above every host section (#addHostSectionRows).
+    hostWorktreeCounts: getLaneHostWorktreeCounts(
+      subtreeWorktrees,
+      [],
+      ctx.repoMap,
+      ctx.defaultHostId
+    ),
+    hostWorktreeIds: getLaneHostWorktreeIds(subtreeWorktrees, [], ctx.repoMap, ctx.defaultHostId),
     worktreeIds: subtreeWorktrees.map((worktree) => worktree.id)
   })
   if (isCollapsed) {

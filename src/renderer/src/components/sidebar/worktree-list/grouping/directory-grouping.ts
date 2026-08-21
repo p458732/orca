@@ -20,21 +20,6 @@ export function getDirectoryGroupKey(hostId: ExecutionHostId, absoluteDirectory:
   return `${DIRECTORY_GROUP_PREFIX}${hostId}:${normalizeRuntimePathForComparison(absoluteDirectory)}`
 }
 
-// Why: the repo may sit at a drive/posix root, where slicing off the last
-// segment would otherwise produce `C:` or an empty string instead of a root.
-function getRuntimeParentPath(value: string): string {
-  const normalized = normalizeRuntimePathSeparators(value).replace(/\/+$/, '')
-  const lastSlash = normalized.lastIndexOf('/')
-  if (lastSlash === -1) {
-    return normalized
-  }
-  if (lastSlash === 0) {
-    return '/'
-  }
-  const parent = normalized.slice(0, lastSlash)
-  return /^[A-Za-z]:$/.test(parent) ? `${parent}/` : parent
-}
-
 /** The directory a repo's worktrees are grouped relative to.
  *  buildKnownOrcaWorkspaceLayouts already yields worktreeBasePath first and
  *  workspaceDir second, with relative paths resolved against the repo. */
@@ -50,7 +35,7 @@ export function resolveWorktreeGroupingRoot(
     },
     repo
   )[0]?.path
-  return rootPath ? normalizeRuntimePathSeparators(rootPath) : getRuntimeParentPath(repo.path)
+  return rootPath ? normalizeRuntimePathSeparators(rootPath) : resolveRuntimePath(repo.path, '..')
 }
 
 export type DirectoryGroupNode = {
