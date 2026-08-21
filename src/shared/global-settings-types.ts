@@ -226,6 +226,8 @@ export type GlobalSettings = {
   showAutomationsButton?: boolean
   /** Only toggles the sidebar shortcut; Calendar stays reachable from Settings/View menu. */
   showCalendarButton?: boolean
+  /** Google calendar ids the user ticked for import. Absent means none selected yet. */
+  googleCalendarSelectedIds?: string[]
   /** Deprecated: Artifacts are always available. Use showArtifactsButton for sidebar visibility. */
   artifactsEnabled?: boolean
   /** Capability gate for agent-driven publishing; off until granted, enforced in main, not just the UI. */

@@ -461,6 +461,11 @@ function longPollClassOf(request: RpcRequest): LongPollClass | null {
     const params = request.params as { wait?: unknown } | undefined
     return params?.wait === true ? 'wait' : null
   }
+  // Why: googleCalendar.connect opens a browser and blocks on the user completing
+  // sign-in, potentially minutes — same 30s idle-timeout exposure as terminal.wait.
+  if (request.method === 'googleCalendar.connect') {
+    return 'wait'
+  }
   return null
 }
 

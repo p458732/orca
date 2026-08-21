@@ -695,6 +695,12 @@ import type { EmulatorBridge } from '../emulator/emulator-bridge'
 import { getRuntimeFileTargetExecutionHostId, RuntimeFileCommands } from './orca-runtime-files'
 import { RuntimeGitCommands } from './orca-runtime-git'
 import {
+  mapCachedGoogleEventsForAgenda,
+  RuntimeGoogleCalendarCommands
+} from './orca-runtime-google-calendar'
+import { GOOGLE_ACCOUNT_ID } from '../google-calendar/google-calendar-sync'
+import { readGoogleCalendarCache } from '../google-calendar/google-calendar-cache'
+import {
   activateClientSessionTabSelection,
   ClientSessionTabSelectionStore,
   deriveClientSessionTabSelection,
@@ -4068,8 +4074,11 @@ export class OrcaRuntimeService {
   }
 
   buildCalendarAgenda(from: number, to: number): CalendarAgenda {
+    const cache = readGoogleCalendarCache(GOOGLE_ACCOUNT_ID)
+    const selected = this.getGoogleSelectedCalendarIds()
     return buildCalendarAgendaFrom({
       events: this.listCalendarEvents(),
+      externalEvents: mapCachedGoogleEventsForAgenda(cache, selected),
       automations: this.listAutomations(),
       from,
       to
@@ -10386,6 +10395,28 @@ export class OrcaRuntimeService {
     this.gitCommands.getRuntimeGitRemoteFileUrl.bind(this.gitCommands)
   getRuntimeGitRemoteCommitUrl: RuntimeGitCommands['getRuntimeGitRemoteCommitUrl'] =
     this.gitCommands.getRuntimeGitRemoteCommitUrl.bind(this.gitCommands)
+
+  private readonly googleCalendarCommands = new RuntimeGoogleCalendarCommands({
+    getSettings: () => this.requireStore().getSettings() as GlobalSettings,
+    updateSettings: (patch) => {
+      this.requireStore().updateSettings?.(patch, { notifyListeners: true })
+    }
+  })
+
+  getGoogleSelectedCalendarIds: RuntimeGoogleCalendarCommands['getGoogleSelectedCalendarIds'] =
+    this.googleCalendarCommands.getGoogleSelectedCalendarIds.bind(this.googleCalendarCommands)
+  setGoogleSelectedCalendars: RuntimeGoogleCalendarCommands['setGoogleSelectedCalendars'] =
+    this.googleCalendarCommands.setGoogleSelectedCalendars.bind(this.googleCalendarCommands)
+  getGoogleCalendarStatus: RuntimeGoogleCalendarCommands['getGoogleCalendarStatus'] =
+    this.googleCalendarCommands.getGoogleCalendarStatus.bind(this.googleCalendarCommands)
+  connectGoogleCalendar: RuntimeGoogleCalendarCommands['connectGoogleCalendar'] =
+    this.googleCalendarCommands.connectGoogleCalendar.bind(this.googleCalendarCommands)
+  disconnectGoogleCalendar: RuntimeGoogleCalendarCommands['disconnectGoogleCalendar'] =
+    this.googleCalendarCommands.disconnectGoogleCalendar.bind(this.googleCalendarCommands)
+  listGoogleCalendarsForAccount: RuntimeGoogleCalendarCommands['listGoogleCalendarsForAccount'] =
+    this.googleCalendarCommands.listGoogleCalendarsForAccount.bind(this.googleCalendarCommands)
+  syncGoogleCalendarNow: RuntimeGoogleCalendarCommands['syncGoogleCalendarNow'] =
+    this.googleCalendarCommands.syncGoogleCalendarNow.bind(this.googleCalendarCommands)
 
   private async resolveRuntimeGitTarget(worktreeSelector: string): Promise<{
     worktree: ResolvedWorktree
