@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { normalizeAllDaySpan } from '../../../shared/calendar-day-span'
 import { isCalendarEvent, type CalendarEvent } from '../../../shared/calendar-types'
 import type { PersistedState } from '../../../shared/persisted-state-types'
 import type { StoreOwnedPersistedState } from '../loading-store/store-owned-state'
@@ -14,22 +15,6 @@ export type CalendarEventCreateInput = {
   endAt: number
   allDay?: boolean
   notes?: string | null
-}
-
-const DAY_MS = 24 * 60 * 60 * 1000
-
-function startOfLocalDay(timestamp: number): number {
-  const date = new Date(timestamp)
-  date.setHours(0, 0, 0, 0)
-  return date.getTime()
-}
-
-/** The one all-day convention: whole local days with an INCLUSIVE end, so the
- *  CLI and the renderer store identical instants for the same days. Idempotent,
- *  because a normalized end is still inside its own last local day. */
-function normalizeAllDaySpan(startAt: number, endAt: number): { startAt: number; endAt: number } {
-  const start = startOfLocalDay(startAt)
-  return { startAt: start, endAt: Math.max(startOfLocalDay(endAt), start) + DAY_MS - 1 }
 }
 
 export function listCalendarEvents(state: PersistedState): CalendarEvent[] {
