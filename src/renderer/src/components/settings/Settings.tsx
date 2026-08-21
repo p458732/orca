@@ -1480,13 +1480,11 @@ function Settings(): React.JSX.Element {
                   title={translate('auto.components.settings.calendar.title', 'Calendar')}
                   description={translate(
                     'auto.components.settings.calendar.description',
-                    'Show Calendar in the sidebar and import events from Google Calendar.'
+                    'Connect a Google account and choose which calendars appear in Orca’s calendar.'
                   )}
                   searchEntries={getSectionSearchEntries('calendar')}
                 >
-                  {isSectionMounted('calendar') ? (
-                    <CalendarSettingsPane settings={settings} updateSettings={updateSettings} />
-                  ) : null}
+                  {isSectionMounted('calendar') ? <CalendarSettingsPane /> : null}
                 </SettingsSection>
 
                 <SettingsSection

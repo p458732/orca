@@ -377,7 +377,7 @@ export function buildSettingsNavigationMetadata({
       title: translate('auto.hooks.useSettingsNavigationMetadata.calendarTitle', 'Calendar'),
       description: translate(
         'auto.hooks.useSettingsNavigationMetadata.calendarDescription',
-        'Show Calendar in the sidebar and import events from Google Calendar.'
+        'Connect a Google account and choose which calendars appear in Orca’s calendar.'
       ),
       icon: CalendarDays,
       searchEntries: getCalendarSettingsSearchEntries(),

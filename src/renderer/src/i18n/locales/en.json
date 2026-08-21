@@ -957,7 +957,7 @@
         "shareSkillsDescription": "Share your skills with an unlisted link. Anyone who has it can install them.",
         "floatingWorkspaceWebDescription": "Global terminal and markdown tabs.",
         "calendarTitle": "Calendar",
-        "calendarDescription": "Show Calendar in the sidebar and import events from Google Calendar."
+        "calendarDescription": "Connect a Google account and choose which calendars appear in Orca’s calendar."
       },
       "useAppMenuPaste": {
         "pasteTooLarge": "Paste is too large."
@@ -11281,8 +11281,6 @@
         },
         "calendar": {
           "googleAccountLink": "Open Google Account connections",
-          "showButton": "Show Calendar Button",
-          "showButtonDescription": "Show the Calendar shortcut in the sidebar. Turn this back on if you hid it from the sidebar.",
           "googleTitle": "Google Calendar",
           "googleDescription": "Import events from your Google account so they appear beside the events you create in Orca.",
           "loading": "Loading the Google Calendar connection",
@@ -11308,8 +11306,7 @@
           "calendarsEmpty": "No calendars found in this Google account.",
           "primaryBadge": "Primary",
           "title": "Calendar",
-          "description": "Show Calendar in the sidebar and import events from Google Calendar.",
-          "showButtonSearchDescription": "Show the Calendar shortcut in the sidebar.",
+          "description": "Connect a Google account and choose which calendars appear in Orca’s calendar.",
           "connectSearchDescription": "Connect a Google account, choose which calendars to import, and sync them.",
           "syncNotConnected": "Google account is not connected. Connect it above, then sync again.",
           "syncAuthRevoked": "Google access is no longer valid. Reconnect your Google account to sync again.",

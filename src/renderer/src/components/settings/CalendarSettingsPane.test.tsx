@@ -4,8 +4,6 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { getDefaultSettings } from '../../../../shared/constants'
-import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type * as GoogleCalendarHostClient from '../calendar/google-calendar-host-client'
 
 const SYNCED_AT = Date.UTC(2026, 7, 20, 9, 30)
@@ -54,17 +52,8 @@ function methodNotFound(): Error {
   })
 }
 
-function renderPane(overrides: Partial<GlobalSettings> = {}): {
-  updateSettings: ReturnType<typeof vi.fn>
-} {
-  const updateSettings = vi.fn().mockResolvedValue(undefined)
-  render(
-    <CalendarSettingsPane
-      settings={{ ...getDefaultSettings('/tmp'), ...overrides }}
-      updateSettings={updateSettings}
-    />
-  )
-  return { updateSettings }
+function renderPane(): void {
+  render(<CalendarSettingsPane />)
 }
 
 function connectedStatus(selected: string[] = ['work']): Record<string, unknown> {
@@ -283,16 +272,6 @@ describe('CalendarSettingsPane', () => {
     expect(
       screen.queryByText('Could not load the Google Calendar connection.')
     ).not.toBeInTheDocument()
-  })
-
-  it('restores the Calendar sidebar entry that hiding it removed', async () => {
-    const user = userEvent.setup({ pointerEventsCheck: 0 })
-    const { updateSettings } = renderPane({ showCalendarButton: false })
-
-    const toggle = await screen.findByRole('switch', { name: 'Show Calendar Button' })
-    expect(toggle).toHaveAttribute('aria-checked', 'false')
-    await user.click(toggle)
-    expect(updateSettings).toHaveBeenCalledWith({ showCalendarButton: true })
   })
 
   it('opens the calendar page from the pane', async () => {

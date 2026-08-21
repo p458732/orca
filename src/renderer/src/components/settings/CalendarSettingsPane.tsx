@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { ArrowRight, CalendarDays, ExternalLink, Loader2 } from 'lucide-react'
-import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import { Button } from '@/components/ui/button'
-import { SettingsSwitchRow } from './SettingsFormControls'
 import { GoogleCalendarConnectedDetails } from './GoogleCalendarConnectedDetails'
 import { GoogleCalendarDisconnectDialog } from './GoogleCalendarDisconnectDialog'
 import { useGoogleCalendarAccount } from './use-google-calendar-account'
@@ -42,31 +40,13 @@ function NoticeBanner({ notice }: { notice: GoogleCalendarNotice }): React.JSX.E
   )
 }
 
-export function CalendarSettingsPane({
-  settings,
-  updateSettings
-}: {
-  settings: GlobalSettings
-  updateSettings: (updates: Partial<GlobalSettings>) => Promise<void>
-}): React.JSX.Element {
+export function CalendarSettingsPane(): React.JSX.Element {
   const openCalendarPage = useAppStore((state) => state.openCalendarPage)
   const account = useGoogleCalendarAccount()
   const [disconnectOpen, setDisconnectOpen] = useState(false)
 
   return (
     <div className="divide-y divide-border">
-      <SettingsSwitchRow
-        label={translate('auto.components.settings.calendar.showButton', 'Show Calendar Button')}
-        description={translate(
-          'auto.components.settings.calendar.showButtonDescription',
-          'Show the Calendar shortcut in the sidebar. Turn this back on if you hid it from the sidebar.'
-        )}
-        checked={settings.showCalendarButton !== false}
-        onChange={() =>
-          void updateSettings({ showCalendarButton: !(settings.showCalendarButton !== false) })
-        }
-      />
-
       <section className="space-y-4 py-5">
         <div className="space-y-1">
           <h3 className="text-sm font-medium">
