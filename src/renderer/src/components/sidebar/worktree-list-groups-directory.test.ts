@@ -81,6 +81,15 @@ describe('buildRows directory grouping', () => {
     ])
   })
 
+  it('reports the descendant count on an intermediate directory holding only a subdirectory', () => {
+    const deep = wt('deep', '/home/me/proj/series.a/series.b/deep')
+    const rows = rowsFor([deep])
+    const seriesAHeader = rows.find(
+      (row) => row.type === 'header' && (row as { label: string }).label === 'series.a'
+    )
+    expect(seriesAHeader).toMatchObject({ count: 1, worktreeIds: ['deep'] })
+  })
+
   it('hides the whole subtree when a parent directory is collapsed', () => {
     const deep = wt('deep', '/home/me/proj/series.a/series.b/deep')
     const open = rowsFor([deep])

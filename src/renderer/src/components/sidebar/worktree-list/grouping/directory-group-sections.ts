@@ -11,21 +11,31 @@ import { appendWorktreeRows, buildFolderWorkspaceRow } from './row-builders'
  *  which always emits 'dir:<hostId>:<path>'. */
 export const DIRECTORY_ROOT_SECTION_KEY = 'directory-root'
 
+// Why: an intermediate directory can hold only subdirectories, so its own count/id
+// list must roll up every descendant, not just worktrees sitting directly in it.
+function collectSubtreeWorktrees(node: DirectoryGroupNode): DirectoryGroupNode['worktrees'] {
+  return node.children.reduce(
+    (all, child) => all.concat(collectSubtreeWorktrees(child)),
+    [...node.worktrees]
+  )
+}
+
 function appendDirectoryNode(
   ctx: SectionAppendContext,
   node: DirectoryGroupNode,
   depth: number
 ): void {
   const isCollapsed = ctx.collapsedGroups.has(node.key)
+  const subtreeWorktrees = collectSubtreeWorktrees(node)
   ctx.result.push({
     type: 'header',
     key: node.key,
     label: node.label,
-    count: node.worktrees.length,
+    count: subtreeWorktrees.length,
     tone: 'text-foreground',
     icon: FolderTree,
     projectGroupDepth: depth,
-    worktreeIds: node.worktrees.map((worktree) => worktree.id)
+    worktreeIds: subtreeWorktrees.map((worktree) => worktree.id)
   })
   if (isCollapsed) {
     return
