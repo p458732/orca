@@ -208,3 +208,74 @@ describe('syncGoogleCalendars — failure paths preserve the cache', () => {
     expect(firstOutcome).toEqual(secondOutcome)
   })
 })
+
+describe('syncGoogleCalendars — coalescing respects call-specific args (fix round 1)', () => {
+  it('does not hand a force call a non-force call’s outcome, so it actually syncs', async () => {
+    const listEvents = vi.fn(async ({ calendarId }: { calendarId: string }) => [
+      sampleEvent(calendarId)
+    ])
+    const deps = baseDeps({ readCache: vi.fn(() => FRESH_CACHE), listEvents })
+    const nonForce = syncGoogleCalendars(deps)
+    const forced = syncGoogleCalendars({ ...deps, force: true })
+    const [nonForceOutcome, forcedOutcome] = await Promise.all([nonForce, forced])
+    expect(nonForceOutcome.status).toBe('skipped_fresh')
+    expect(forcedOutcome.status).toBe('synced')
+    expect(listEvents).toHaveBeenCalled()
+  })
+
+  it('does not coalesce onto an in-flight call for a different calendar selection', async () => {
+    let resolveFirst: (events: GoogleCalendarEvent[]) => void = () => {}
+    const gate = new Promise<GoogleCalendarEvent[]>((resolve) => {
+      resolveFirst = resolve
+    })
+    const listEvents = vi.fn(async ({ calendarId }: { calendarId: string }) => {
+      if (calendarId === 'cal-1' && listEvents.mock.calls.length === 1) {
+        return gate
+      }
+      return [sampleEvent(calendarId)]
+    })
+    const first = syncGoogleCalendars(baseDeps({ selectedCalendarIds: ['cal-1'], listEvents }))
+    const second = syncGoogleCalendars(baseDeps({ selectedCalendarIds: ['cal-2'], listEvents }))
+    resolveFirst([sampleEvent('cal-1')])
+    await Promise.all([first, second])
+    expect(listEvents).toHaveBeenCalledWith(expect.objectContaining({ calendarId: 'cal-1' }))
+    expect(listEvents).toHaveBeenCalledWith(expect.objectContaining({ calendarId: 'cal-2' }))
+  })
+})
+
+describe('syncGoogleCalendars — names the failed calendar (fix round 1)', () => {
+  it('carries the calendar id of a page-limit failure so the settings pane can name the offender', async () => {
+    const { GooglePageLimitExceededError } = await import('./google-calendar-client')
+    const listEvents = vi.fn(async ({ calendarId }: { calendarId: string }) => {
+      if (calendarId === 'cal-2') {
+        throw new GooglePageLimitExceededError()
+      }
+      return [sampleEvent(calendarId)]
+    })
+    const deps = baseDeps({ selectedCalendarIds: ['cal-1', 'cal-2'], listEvents })
+    const outcome = await syncGoogleCalendars(deps)
+    expect(outcome.reason).toBe('page_limit_exceeded')
+    expect(outcome.failedCalendarId).toBe('cal-2')
+  })
+})
+
+describe('syncGoogleCalendars — refreshes ahead of expiry (fix round 1)', () => {
+  it('proactively refreshes a token expiring inside the buffer, not just an already-expired one', async () => {
+    const aboutToExpireTokens: GoogleStoredTokens = {
+      refreshToken: 'refresh-1',
+      accessToken: 'access-1',
+      accessTokenExpiresAt: NOW + 30 * 1000,
+      accountEmail: 'me@example.com'
+    }
+    const refreshAccessToken = vi.fn(async () => ({
+      accessToken: 'access-2',
+      accessTokenExpiresAt: NOW + 60 * 60 * 1000
+    }))
+    const deps = baseDeps({
+      loadTokens: vi.fn(() => aboutToExpireTokens),
+      refreshAccessToken
+    })
+    await syncGoogleCalendars(deps)
+    expect(refreshAccessToken).toHaveBeenCalled()
+  })
+})

@@ -19,6 +19,10 @@ export const GOOGLE_SYNC_WINDOW_BACK_DAYS = 30
 export const GOOGLE_SYNC_WINDOW_FORWARD_DAYS = 90
 // Why: single-account prototype — one fixed cache/token key until multi-account lands.
 export const GOOGLE_ACCOUNT_ID = 'default'
+// Why: refresh slightly ahead of the real expiry so a token that dies mid-fetch
+// never gets used — without this a token expiring in a few seconds is used as-is,
+// 401s mid-sync, and gets misreported as auth_revoked when nothing was revoked.
+export const GOOGLE_TOKEN_EXPIRY_BUFFER_MS = 60 * 1000
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -26,6 +30,9 @@ export type GoogleSyncOutcome = {
   status: 'synced' | 'skipped_fresh' | 'failed'
   syncedAt: number | null
   reason: string | null
+  // Why: page_limit_exceeded (and any other in-loop failure) is scoped to one
+  // calendar — name it so the settings pane can tell the user which to deselect.
+  failedCalendarId?: string
 }
 
 // Why: a future syncedAt (clock skew) must read as fresh, not stale — a negative
@@ -79,18 +86,46 @@ function classifyGoogleSyncFailure(err: unknown): string {
   return 'network_error'
 }
 
-// Why: only one sync may be in flight at a time (matches collector.ts's inflight
-// pattern) so a UI click and a concurrent CLI agenda call share one fetch.
-let inflight: Promise<GoogleSyncOutcome> | null = null
+// Why: order-independent — checkbox-driven selections aren't guaranteed stable order.
+function calendarSelectionsMatch(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) {
+    return false
+  }
+  const sortedA = [...a].sort()
+  const sortedB = [...b].sort()
+  return sortedA.every((id, index) => id === sortedB[index])
+}
+
+// Why: a force call must never inherit a non-force call's possible skip_fresh
+// result, and a caller for one calendar selection must never receive a cache
+// outcome built from a different selection — both would silently mislead the
+// caller rather than fail loudly.
+function canCoalesceOnto(
+  current: GoogleCalendarSyncArgs,
+  running: GoogleCalendarSyncArgs
+): boolean {
+  if (current.force && !running.force) {
+    return false
+  }
+  return calendarSelectionsMatch(current.selectedCalendarIds, running.selectedCalendarIds)
+}
+
+// Why: only one COMPATIBLE sync may be in flight at a time (matches collector.ts's
+// inflight pattern) so a UI click and a concurrent CLI agenda call share one fetch —
+// but an incompatible call (see canCoalesceOnto) always gets its own run.
+let inflight: { args: GoogleCalendarSyncArgs; promise: Promise<GoogleSyncOutcome> } | null = null
 
 export function syncGoogleCalendars(args: GoogleCalendarSyncArgs): Promise<GoogleSyncOutcome> {
-  if (inflight) {
-    return inflight
+  if (inflight && canCoalesceOnto(args, inflight.args)) {
+    return inflight.promise
   }
-  inflight = performSync(args).finally(() => {
-    inflight = null
+  const promise: Promise<GoogleSyncOutcome> = performSync(args).finally(() => {
+    if (inflight?.promise === promise) {
+      inflight = null
+    }
   })
-  return inflight
+  inflight = { args, promise }
+  return promise
 }
 
 async function performSync(args: GoogleCalendarSyncArgs): Promise<GoogleSyncOutcome> {
@@ -110,6 +145,10 @@ async function performSync(args: GoogleCalendarSyncArgs): Promise<GoogleSyncOutc
   const listEvents = args.listEvents ?? listGoogleEvents
   const writeCache = args.writeCache ?? writeGoogleCalendarCache
 
+  // Why: tracked outside the loop so the catch below can name which calendar
+  // was being fetched when a failure hit.
+  let currentCalendarId: string | null = null
+
   try {
     const tokens = loadTokens(accountId)
     if (!tokens) {
@@ -118,7 +157,9 @@ async function performSync(args: GoogleCalendarSyncArgs): Promise<GoogleSyncOutc
 
     let accessToken = tokens.accessToken
     const expired =
-      !accessToken || tokens.accessTokenExpiresAt == null || tokens.accessTokenExpiresAt <= now
+      !accessToken ||
+      tokens.accessTokenExpiresAt == null ||
+      tokens.accessTokenExpiresAt <= now + GOOGLE_TOKEN_EXPIRY_BUFFER_MS
     if (expired) {
       const config = args.config ?? getGoogleOAuthConfig()
       const refreshed = await refreshAccessToken({ config, refreshToken: tokens.refreshToken })
@@ -133,6 +174,7 @@ async function performSync(args: GoogleCalendarSyncArgs): Promise<GoogleSyncOutc
     const window = computeSyncWindow(now)
     const calendars: Record<string, GoogleCalendarEvent[]> = {}
     for (const calendarId of args.selectedCalendarIds) {
+      currentCalendarId = calendarId
       calendars[calendarId] = await listEvents({
         accessToken: accessToken as string,
         calendarId,
@@ -144,6 +186,11 @@ async function performSync(args: GoogleCalendarSyncArgs): Promise<GoogleSyncOutc
     writeCache({ accountId, syncedAt: now, calendars })
     return { status: 'synced', syncedAt: now, reason: null }
   } catch (err) {
-    return { status: 'failed', syncedAt: existingSyncedAt, reason: classifyGoogleSyncFailure(err) }
+    return {
+      status: 'failed',
+      syncedAt: existingSyncedAt,
+      reason: classifyGoogleSyncFailure(err),
+      failedCalendarId: currentCalendarId ?? undefined
+    }
   }
 }
