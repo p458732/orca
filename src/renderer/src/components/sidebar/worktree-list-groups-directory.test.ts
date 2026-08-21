@@ -4,8 +4,10 @@ import {
   getGroupKeyForWorktree,
   getGroupKeysForWorktree
 } from './worktree-list/grouping/worktree-group-keys'
+import { getRenderedNaturalAnchorRepoIds } from './worktree-list/grouping/section-order'
 import { addHostSectionRows } from './host-section-rows'
 import { repo, worktree } from './worktree-list-groups-test-fixtures'
+import { cloneDefaultWorkspaceStatuses } from '../../../../shared/workspace-statuses'
 import type { Repo } from '../../../../shared/repo-types'
 import type { Worktree } from '../../../../shared/worktree/types'
 import type { AppState } from '../../store/types'
@@ -196,5 +198,32 @@ describe('getGroupKeyForWorktree in directory mode', () => {
     expect(getGroupKeyForWorktree('directory', baseline, repoMap, null, undefined, settings)).toBe(
       'dir:local:/home/me/proj/series.tune_lr'
     )
+  })
+})
+
+describe('getRenderedNaturalAnchorRepoIds with non-local host', () => {
+  it('uses the correct host-scoped key when defaultHostId is passed', () => {
+    // Worktree without explicit hostId, relying on defaultHostId
+    const remote = wt('remote-wt', '/home/me/proj/series.tune_lr/remote')
+    // Remove any hostId to force using defaultHostId
+    delete remote.hostId
+    // The directory group key for the remote host
+    const remoteGroupKey = 'dir:ssh:gpu:/home/me/proj/series.tune_lr'
+    // Simulate the group being collapsed by including it in collapsedGroups
+    const collapsed = new Set([remoteGroupKey])
+    // Call with the correct defaultHostId
+    const rendered = getRenderedNaturalAnchorRepoIds({
+      groupBy: 'directory',
+      worktrees: [remote],
+      repoMap,
+      prCache: null,
+      collapsedGroups: collapsed,
+      workspaceStatuses: cloneDefaultWorkspaceStatuses(),
+      settings,
+      projectGrouping: undefined,
+      defaultHostId: 'ssh:gpu'
+    })
+    // Since the group is collapsed and the key matches, the worktree should not be rendered
+    expect(rendered.has(remote.repoId)).toBe(false)
   })
 })

@@ -132,7 +132,8 @@ export function buildRows(
     collapsedGroups,
     workspaceStatuses,
     settings,
-    projectGrouping
+    projectGrouping,
+    defaultHostId
   })
   emitPinnedGroup(
     pinnedSectionWorktrees,

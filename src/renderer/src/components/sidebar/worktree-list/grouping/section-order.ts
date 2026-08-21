@@ -2,6 +2,8 @@ import type { Repo } from '../../../../../../shared/repo-types'
 import type { ProjectOrderBy } from '../../../../../../shared/ui-chrome-types'
 import type { WorkspaceStatusDefinition, Worktree } from '../../../../../../shared/worktree/types'
 import type { AppState } from '../../../../store/types'
+import { LOCAL_EXECUTION_HOST_ID } from '../../../../../../shared/execution-host'
+import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import { getRepoDisplayLabelKey, getRepoDisplayLabelsByPath } from '@/lib/repo-display-labels'
 import { ALL_GROUP_KEY } from './group-keys'
 import type {
@@ -20,7 +22,8 @@ export function getRenderedNaturalAnchorRepoIds({
   collapsedGroups,
   workspaceStatuses,
   settings,
-  projectGrouping
+  projectGrouping,
+  defaultHostId = LOCAL_EXECUTION_HOST_ID
 }: {
   groupBy: WorktreeGroupBy
   worktrees: readonly Worktree[]
@@ -30,6 +33,7 @@ export function getRenderedNaturalAnchorRepoIds({
   workspaceStatuses: readonly WorkspaceStatusDefinition[]
   settings?: AppState['settings']
   projectGrouping?: ProjectGroupingModel
+  defaultHostId?: ExecutionHostId
 }): Set<string> {
   const renderedRepoIds = new Set<string>()
   if (groupBy === 'none') {
@@ -54,7 +58,8 @@ export function getRenderedNaturalAnchorRepoIds({
       prCache,
       workspaceStatuses,
       settings,
-      projectGrouping
+      projectGrouping,
+      defaultHostId
     )
     if (groupKey && !collapsedGroups.has(groupKey)) {
       renderedRepoIds.add(worktree.repoId)
