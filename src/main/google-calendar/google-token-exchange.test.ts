@@ -85,6 +85,40 @@ describe('exchangeGoogleAuthorizationCode', () => {
       })
     ).rejects.toThrow()
   })
+
+  it('throws a plain Error carrying the status for a 503, not GoogleAuthRevokedError', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ error: 'backend_error' }, 503))
+    let caught: unknown
+    try {
+      await exchangeGoogleAuthorizationCode({
+        config: CONFIG,
+        code: 'code-1',
+        codeVerifier: 'v',
+        redirectUri: 'http://127.0.0.1:1/auth/callback',
+        fetchImpl
+      })
+    } catch (error) {
+      caught = error
+    }
+    expect(caught).toBeInstanceOf(Error)
+    expect(caught).not.toBeInstanceOf(GoogleAuthRevokedError)
+    expect((caught as Error).message).toContain('503')
+  })
+
+  it('throws when the 2xx response is missing refresh_token', async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({ access_token: 'access-1', expires_in: 3600 })
+    )
+    await expect(
+      exchangeGoogleAuthorizationCode({
+        config: CONFIG,
+        code: 'code-1',
+        codeVerifier: 'v',
+        redirectUri: 'http://127.0.0.1:1/auth/callback',
+        fetchImpl
+      })
+    ).rejects.toThrow(/refresh_token/)
+  })
 })
 
 describe('refreshGoogleAccessToken', () => {
@@ -109,23 +143,53 @@ describe('refreshGoogleAccessToken', () => {
       refreshGoogleAccessToken({ config: CONFIG, refreshToken: 'dead', fetchImpl })
     ).rejects.toBeInstanceOf(GoogleAuthRevokedError)
   })
+
+  it('throws a plain Error carrying the status for a 503, not GoogleAuthRevokedError', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ error: 'backend_error' }, 503))
+    let caught: unknown
+    try {
+      await refreshGoogleAccessToken({ config: CONFIG, refreshToken: 'refresh-1', fetchImpl })
+    } catch (error) {
+      caught = error
+    }
+    expect(caught).toBeInstanceOf(Error)
+    expect(caught).not.toBeInstanceOf(GoogleAuthRevokedError)
+    expect((caught as Error).message).toContain('503')
+  })
+
+  it('throws when the 2xx response is missing access_token', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ expires_in: 1800 }))
+    await expect(
+      refreshGoogleAccessToken({ config: CONFIG, refreshToken: 'refresh-1', fetchImpl })
+    ).rejects.toThrow(/access_token/)
+  })
 })
 
 describe('revokeGoogleToken', () => {
-  it('posts the token to the revoke endpoint', async () => {
+  it('returns true and posts the token to the revoke endpoint on success', async () => {
     const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
       jsonResponse({})
     )
-    await revokeGoogleToken({ config: CONFIG, token: 'access-1', fetchImpl })
+    const result = await revokeGoogleToken({ config: CONFIG, token: 'access-1', fetchImpl })
+    expect(result).toBe(true)
     const [url, init] = fetchImpl.mock.calls[0]
     expect(url).toBe(CONFIG.revokeEndpoint)
     expect(String(init?.body)).toContain('token=access-1')
   })
 
-  it('does not throw when Google rejects the revocation', async () => {
+  it('returns false without throwing when Google rejects the revocation', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({ error: 'invalid_token' }, 400))
-    await expect(
-      revokeGoogleToken({ config: CONFIG, token: 'dead', fetchImpl })
-    ).resolves.toBeUndefined()
+    await expect(revokeGoogleToken({ config: CONFIG, token: 'dead', fetchImpl })).resolves.toBe(
+      false
+    )
+  })
+
+  it('returns false without throwing when the network request itself fails', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error('network down')
+    })
+    await expect(revokeGoogleToken({ config: CONFIG, token: 'dead', fetchImpl })).resolves.toBe(
+      false
+    )
   })
 })

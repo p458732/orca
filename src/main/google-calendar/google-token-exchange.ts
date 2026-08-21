@@ -37,6 +37,24 @@ function expiresAtFromNow(expiresInSeconds: number): number {
   return Date.now() + expiresInSeconds * 1000
 }
 
+// Why: a 2xx body missing a field we depend on must fail loudly here, not as an
+// undefined value silently persisted into the token store.
+function requireString(payload: Record<string, unknown>, field: string): string {
+  const value = payload[field]
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`Google token response is missing "${field}"`)
+  }
+  return value
+}
+
+function requireNumber(payload: Record<string, unknown>, field: string): number {
+  const value = payload[field]
+  if (typeof value !== 'number') {
+    throw new Error(`Google token response is missing "${field}"`)
+  }
+  return value
+}
+
 export async function exchangeGoogleAuthorizationCode(args: {
   config: GoogleOAuthConfig
   code: string
@@ -60,15 +78,14 @@ export async function exchangeGoogleAuthorizationCode(args: {
   if (!response.ok) {
     await throwForTokenResponse(response)
   }
-  const payload = (await response.json()) as {
-    access_token: string
-    refresh_token: string
-    expires_in: number
-  }
+  const payload = (await response.json()) as Record<string, unknown>
+  const accessToken = requireString(payload, 'access_token')
+  const refreshToken = requireString(payload, 'refresh_token')
+  const expiresIn = requireNumber(payload, 'expires_in')
   return {
-    refreshToken: payload.refresh_token,
-    accessToken: payload.access_token,
-    accessTokenExpiresAt: expiresAtFromNow(payload.expires_in),
+    refreshToken,
+    accessToken,
+    accessTokenExpiresAt: expiresAtFromNow(expiresIn),
     accountEmail: null
   }
 }
@@ -92,28 +109,33 @@ export async function refreshGoogleAccessToken(args: {
   if (!response.ok) {
     await throwForTokenResponse(response)
   }
-  const payload = (await response.json()) as { access_token: string; expires_in: number }
+  const payload = (await response.json()) as Record<string, unknown>
+  const accessToken = requireString(payload, 'access_token')
+  const expiresIn = requireNumber(payload, 'expires_in')
   return {
-    accessToken: payload.access_token,
-    accessTokenExpiresAt: expiresAtFromNow(payload.expires_in)
+    accessToken,
+    accessTokenExpiresAt: expiresAtFromNow(expiresIn)
   }
 }
 
-// Why: revocation failing must never block local disconnect, so this never throws.
+// Why: revocation failing must never block local disconnect, so this never throws —
+// it reports success via the return value instead, so a stale grant left on Google's
+// side isn't a silent, invisible failure to the caller.
 export async function revokeGoogleToken(args: {
   config: GoogleOAuthConfig
   token: string
   fetchImpl?: FetchImpl
-}): Promise<void> {
+}): Promise<boolean> {
   const { config, token, fetchImpl = globalThis.fetch } = args
   const body = new URLSearchParams({ token })
   try {
-    await fetchImpl(config.revokeEndpoint, {
+    const response = await fetchImpl(config.revokeEndpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body
     })
+    return response.ok
   } catch {
-    // Network failure during revoke: still allow local disconnect to proceed.
+    return false
   }
 }
