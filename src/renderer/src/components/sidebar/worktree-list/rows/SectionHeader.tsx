@@ -87,6 +87,8 @@ export function renderWorktreeSectionHeaderRow(args: {
   const { headerDrag } = ctx
   const isRepoHeader = ctx.groupBy === 'repo' && row.repo !== undefined
   const isProjectGroupHeader = ctx.groupBy === 'repo' && row.projectGroup !== undefined
+  // Why: directory grouping nests headers by real filesystem depth, same as project groups.
+  const isDirectoryHeader = ctx.groupBy === 'directory'
   const projectIdForHeader = isRepoHeader ? row.repo!.id : undefined
   const projectGroupIdForHeader =
     isProjectGroupHeader && !row.repo && typeof row.projectGroup?.id === 'string'
@@ -164,10 +166,14 @@ export function renderWorktreeSectionHeaderRow(args: {
       })
     : null
   const isHeaderCollapsed = ctx.collapsedGroups.has(row.key)
-  // Why: repo/project/status/pinned share compact section chrome; flat "All" stays a simple label.
+  // Why: repo/project/status/pinned/directory share compact section chrome; flat "All" stays a simple label.
   const showHeaderCollapseAffordance =
     row.count > 0 &&
-    (isRepoHeader || isProjectGroupHeader || headerWorkspaceStatus !== null || isPinnedHeader)
+    (isRepoHeader ||
+      isProjectGroupHeader ||
+      isDirectoryHeader ||
+      headerWorkspaceStatus !== null ||
+      isPinnedHeader)
   return (
     <div
       key={vItem.key}
@@ -241,7 +247,7 @@ export function renderWorktreeSectionHeaderRow(args: {
         style={{
           // Why: non-project headers like "All" are flat-list labels; don't reserve project hierarchy indent.
           paddingLeft:
-            isRepoHeader || isProjectGroupHeader
+            isRepoHeader || isProjectGroupHeader || isDirectoryHeader
               ? getProjectGroupHeaderPaddingLeft(row.projectGroupDepth ?? 0)
               : WORKTREE_SECTION_HEADER_PADDING_LEFT
         }}
