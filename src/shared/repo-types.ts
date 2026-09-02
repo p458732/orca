@@ -1,3 +1,4 @@
+import type { ProjectFolderScopeMode } from './worktree/project-folder-scope'
 import type { RepoIcon } from './repo-icon'
 import type { GitHubRepositoryIdentity } from './github/pull-request-types'
 import type { RepoHookSettings } from './orca-yaml-hook-types'
@@ -84,6 +85,9 @@ export type Repo = {
   importedExternalWorktreePaths?: string[]
   /** Opt-in repo policy for coding-agent scratch worktrees; absent means hide. */
   agentWorktreeVisibility?: ExternalWorktreeVisibility
+  /** Scopes the sidebar to worktrees inside this project's own folder. Unset
+   *  turns it on only for projects that nest worktrees there. */
+  projectFolderScope?: ProjectFolderScopeMode
   /** User-defined roots classified independently from ordinary external worktrees. */
   customWorktreeVisibilitySources?: CustomWorktreeVisibilitySource[]
   /** Per-source visibility; absent built-ins inherit the legacy agent policy. */

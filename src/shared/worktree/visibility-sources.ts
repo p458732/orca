@@ -121,7 +121,12 @@ export function normalizeWorktreeVisibilitySourcePreferences(
   }
 }
 
-function createDescendantMatcher(rootPath: string): (normalizedCandidate: string) => boolean {
+/** Strictly inside `rootPath`, excluding the root itself. Normalizes the root
+ *  once; callers pass candidates already run through
+ *  `normalizeRuntimePathForComparison`. */
+export function createDescendantMatcher(
+  rootPath: string
+): (normalizedCandidate: string) => boolean {
   const matchesInsideOrEqual = createNormalizedPathInsideOrEqualMatcher(rootPath)
   const normalizedRoot = normalizeRuntimePathForComparison(rootPath)
   return (normalizedCandidate) =>

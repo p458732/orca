@@ -706,6 +706,10 @@ import {
   isLegacyRepoForExternalWorktreeVisibility,
   toDetectedWorktree
 } from '../../shared/worktree/ownership'
+import {
+  hasNestedProjectWorktrees,
+  isProjectFolderScopeActive
+} from '../../shared/worktree/project-folder-scope'
 import { isAgentScratchRepoRootPath } from '../../shared/agent-scratch-worktrees'
 import {
   createWorktreeVisibilitySourceMatcher,
@@ -26064,11 +26068,18 @@ export class OrcaRuntimeService {
     if (scan.ok) {
       pruneLineageForMissingRepoWorktrees(store, repo, scan.worktrees)
     }
+    const scanWorktreePaths = scan.worktrees.map((worktree) => worktree.path)
     const worktreeVisibilitySourceMatcher = createWorktreeVisibilitySourceMatcher(
-      [repo.path, ...scan.worktrees.map((worktree) => worktree.path)],
+      [repo.path, ...scanWorktreePaths],
       resolveCustomWorktreeVisibilitySources(repo, visibilityDefaults),
       resolveConfiguredWorktreeBasePaths(repo)
     )
+    // Why mirrored from the IPC listing: a runtime-hosted repo must scope its
+    // sidebar the same way a locally listed one does.
+    const projectFolderScopeActive = isProjectFolderScopeActive({
+      mode: repo.projectFolderScope,
+      hasNestedWorktrees: hasNestedProjectWorktrees(repo.path, scanWorktreePaths)
+    })
     const expectedHostId = getRepoExecutionHostId(repo)
     const repoOwnerCount = store.getRepos().filter((candidate) => candidate.id === repo.id).length
     const metaById = store.getAllWorktreeMeta()
@@ -26087,7 +26098,8 @@ export class OrcaRuntimeService {
         worktree,
         worktreeVisibilitySourceMatcher,
         visibilitySettings,
-        meta ?? null
+        meta ?? null,
+        projectFolderScopeActive
       )
       if (scan.ok) {
         return detectedWorktree
@@ -26194,7 +26206,8 @@ export class OrcaRuntimeService {
     worktree: Worktree,
     worktreeVisibilitySourceMatcher?: WorktreeVisibilitySourceMatcher,
     providedSettings?: ReturnType<RuntimeStore['getSettings']>,
-    providedMeta?: WorktreeMeta | null
+    providedMeta?: WorktreeMeta | null,
+    projectFolderScopeActive?: boolean
   ): DetectedWorktree {
     const settings = providedSettings ?? this.store?.getSettings()
     if (!settings) {
@@ -26215,7 +26228,8 @@ export class OrcaRuntimeService {
       settings,
       knownOrcaLayouts: buildKnownOrcaWorkspaceLayouts(settings, repo),
       isLegacyRepoForVisibility: isLegacyRepoForExternalWorktreeVisibility(repo),
-      worktreeVisibilitySourceMatcher
+      worktreeVisibilitySourceMatcher,
+      projectFolderScopeActive
     })
   }
 

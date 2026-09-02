@@ -18,6 +18,10 @@ import {
   isLegacyRepoForExternalWorktreeVisibility,
   toDetectedWorktree
 } from '../../../../shared/worktree/ownership'
+import {
+  hasNestedProjectWorktrees,
+  isProjectFolderScopeActive
+} from '../../../../shared/worktree/project-folder-scope'
 import { dedupeWorktreesByPath } from '../../worktree-path-comparison'
 import {
   createWorktreeVisibilitySourceMatcher,
@@ -146,11 +150,18 @@ export function buildDetectedGitWorktrees(
   const liveWorktrees = dedupeWorktreesByPath(
     gitWorktrees.filter((gitWorktree) => !gitWorktree.prunable)
   )
+  const liveWorktreePaths = liveWorktrees.map((worktree) => worktree.path)
   const worktreeVisibilitySourceMatcher = createWorktreeVisibilitySourceMatcher(
-    [repo.path, ...liveWorktrees.map((worktree) => worktree.path)],
+    [repo.path, ...liveWorktreePaths],
     resolveCustomWorktreeVisibilitySources(repo, settings.worktreeVisibilityDefaults),
     resolveConfiguredWorktreeBasePaths(repo)
   )
+  // Why here: the scope is a per-repo verdict over the whole listing, and this is
+  // the only place holding it — toDetectedWorktree sees one worktree at a time.
+  const projectFolderScopeActive = isProjectFolderScopeActive({
+    mode: repo.projectFolderScope,
+    hasNestedWorktrees: hasNestedProjectWorktrees(repo.path, liveWorktreePaths)
+  })
   const allMeta = allMetaOverride ?? store.getAllWorktreeMeta?.()
   const repoOwnerCount = store.getRepos().filter((candidate) => candidate.id === repo.id).length
   const detected = liveWorktrees.map((gitWorktree) => {
@@ -168,7 +179,8 @@ export function buildDetectedGitWorktrees(
       settings,
       knownOrcaLayouts,
       isLegacyRepoForVisibility,
-      worktreeVisibilitySourceMatcher
+      worktreeVisibilitySourceMatcher,
+      projectFolderScopeActive
     })
     if (!detected.visible) {
       return detected
@@ -188,7 +200,8 @@ export function buildDetectedGitWorktrees(
       settings,
       knownOrcaLayouts,
       isLegacyRepoForVisibility,
-      worktreeVisibilitySourceMatcher
+      worktreeVisibilitySourceMatcher,
+      projectFolderScopeActive
     })
   })
   return projectResolvedWorktreeLineage(detected, store.getAllWorktreeLineage?.() ?? {})

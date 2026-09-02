@@ -170,6 +170,8 @@ export function toDetectedWorktree(args: {
   isLegacyRepoForVisibility?: boolean
   agentScratchWorktreePathMatcher?: AgentScratchWorktreePathMatcher
   worktreeVisibilitySourceMatcher?: WorktreeVisibilitySourceMatcher
+  /** Resolved once per repo by the caller that holds the full worktree list. */
+  projectFolderScopeActive?: boolean
 }): DetectedWorktree {
   const sourceMatcher =
     args.worktreeVisibilitySourceMatcher ??
@@ -194,7 +196,8 @@ export function toDetectedWorktree(args: {
     isSelectedCheckout: selectedCheckout,
     importedExternalWorktreePaths: args.repo.importedExternalWorktreePaths,
     visibilityDefaults: args.settings.worktreeVisibilityDefaults,
-    visibilitySource
+    visibilitySource,
+    projectFolderScopeActive: args.projectFolderScopeActive
   })
 
   return {
