@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { i18n } from '@/i18n/i18n'
-import { getLanguageEntries } from './appearance-search'
+import { getLanguageEntries, getSidebarEntries } from './appearance-search'
 import { matchesSettingsSearch } from './settings-search'
 
 // Native word for "language" in each supported UI language. These must be
@@ -28,5 +28,15 @@ describe('getLanguageEntries', () => {
   it('matches the Spanish native language name in English UI', async () => {
     await i18n.changeLanguage('en')
     expect(matchesSettingsSearch('Español', getLanguageEntries()[0])).toBe(true)
+  })
+})
+
+// AppearanceWindowSidebarSection looks these up positionally (sidebarEntries[n]).
+// The fork appends its entry rather than inserting one, so only its own index
+// needs pinning — if upstream adds an entry above it, this goes red and the
+// section's index has to move with it.
+describe('getSidebarEntries', () => {
+  it('keeps the Calendar entry at the index the appearance section reads', () => {
+    expect(getSidebarEntries()[3]?.title).toBe('Show Calendar Button')
   })
 })

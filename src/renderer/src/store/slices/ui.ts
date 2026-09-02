@@ -645,6 +645,7 @@ export type UISlice = {
     | 'settings'
     | 'activity'
     | 'automations'
+    | 'calendar'
     | 'space'
     | 'skills'
     | 'artifacts'
@@ -654,6 +655,7 @@ export type UISlice = {
     | 'tasks'
     | 'activity'
     | 'automations'
+    | 'calendar'
     | 'space'
     | 'skills'
     | 'artifacts'
@@ -663,6 +665,7 @@ export type UISlice = {
     | 'settings'
     | 'tasks'
     | 'automations'
+    | 'calendar'
     | 'space'
     | 'skills'
     | 'artifacts'
@@ -672,6 +675,17 @@ export type UISlice = {
     | 'settings'
     | 'tasks'
     | 'activity'
+    | 'calendar'
+    | 'space'
+    | 'skills'
+    | 'artifacts'
+    | 'mobile'
+  previousViewBeforeCalendar:
+    | 'terminal'
+    | 'settings'
+    | 'tasks'
+    | 'activity'
+    | 'automations'
     | 'space'
     | 'skills'
     | 'artifacts'
@@ -682,6 +696,7 @@ export type UISlice = {
     | 'tasks'
     | 'activity'
     | 'automations'
+    | 'calendar'
     | 'skills'
     | 'artifacts'
     | 'mobile'
@@ -691,6 +706,7 @@ export type UISlice = {
     | 'tasks'
     | 'activity'
     | 'automations'
+    | 'calendar'
     | 'space'
     | 'artifacts'
     | 'mobile'
@@ -700,6 +716,7 @@ export type UISlice = {
     | 'tasks'
     | 'activity'
     | 'automations'
+    | 'calendar'
     | 'space'
     | 'skills'
     | 'artifacts'
@@ -709,6 +726,7 @@ export type UISlice = {
     | 'tasks'
     | 'activity'
     | 'automations'
+    | 'calendar'
     | 'space'
     | 'skills'
     | 'mobile'
@@ -788,6 +806,8 @@ export type UISlice = {
   ) => void
   openAutomationsPage: () => void
   closeAutomationsPage: () => void
+  openCalendarPage: () => void
+  closeCalendarPage: () => void
   openSpacePage: () => void
   closeSpacePage: () => void
   openSkillsPage: () => void
@@ -1323,6 +1343,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
   previousViewBeforeSettings: 'terminal',
   previousViewBeforeActivity: 'terminal',
   previousViewBeforeAutomations: 'terminal',
+  previousViewBeforeCalendar: 'terminal',
   previousViewBeforeSpace: 'terminal',
   previousViewBeforeSkills: 'terminal',
   pendingSkillShareId: null,
@@ -1543,6 +1564,18 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     set((state) => ({
       activeView: state.previousViewBeforeAutomations,
       worktreeNavHistoryIndex: rewindHistoryIndexPastView(state, 'automations')
+    })),
+  // Why no recordViewVisit/worktreeNavHistoryIndex reconciliation: unlike automations,
+  // calendar isn't reachable from a per-worktree card, so it never enters worktree nav history.
+  openCalendarPage: () =>
+    set((state) => ({
+      activeView: 'calendar',
+      previousViewBeforeCalendar:
+        state.activeView === 'calendar' ? state.previousViewBeforeCalendar : state.activeView
+    })),
+  closeCalendarPage: () =>
+    set((state) => ({
+      activeView: state.previousViewBeforeCalendar
     })),
   openSpacePage: () => {
     get().recordFeatureInteraction?.('workspace-cleanup')

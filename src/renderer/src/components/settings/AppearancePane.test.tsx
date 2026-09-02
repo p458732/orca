@@ -372,6 +372,30 @@ describe('AppearancePane', () => {
     expect(updateSettings).toHaveBeenCalledWith({ showAutomationsButton: true })
   })
 
+  it('restores the Calendar sidebar button from the sidebar settings switch', async () => {
+    // Also proves the entry is reachable by searching Settings for "calendar".
+    mocks.state.settingsSearchQuery = 'calendar'
+    const updateSettings = vi.fn()
+    const settings = {
+      ...getDefaultSettings('/tmp'),
+      showCalendarButton: false
+    }
+
+    const container = await renderAppearancePane(settings, updateSettings)
+    const switchControl = container.querySelector<HTMLButtonElement>(
+      'button[role="switch"][aria-label="Show Calendar Button"]'
+    )
+
+    expect(switchControl).not.toBeNull()
+    expect(switchControl?.getAttribute('aria-checked')).toBe('false')
+
+    await act(async () => {
+      switchControl?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(updateSettings).toHaveBeenCalledWith({ showCalendarButton: true })
+  })
+
   it('changes workspace card layout from the Appearance sidebar controls', async () => {
     mocks.state.settingsSearchQuery = 'workspace card layout'
     const settings = {

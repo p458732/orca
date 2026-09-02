@@ -322,6 +322,12 @@ import type {
   AutomationWorkspaceMode
 } from '../../shared/automations-types'
 import {
+  buildCalendarAgenda as buildCalendarAgendaFrom,
+  type CalendarAgenda
+} from '../../shared/calendar-agenda'
+import type { CalendarEvent } from '../../shared/calendar-types'
+import type { CalendarEventCreateInput } from '../persistence/calendar/calendar-event-operations'
+import {
   automationChangePublications,
   type AutomationChangeSelector,
   type AutomationListParams,
@@ -1468,6 +1474,9 @@ type RuntimeStore = {
   createAutomation?: Store['createAutomation']
   updateAutomation?: Store['updateAutomation']
   deleteAutomation?: Store['deleteAutomation']
+  listCalendarEvents?: Store['listCalendarEvents']
+  createCalendarEvent?: Store['createCalendarEvent']
+  deleteCalendarEvent?: Store['deleteCalendarEvent']
   getSparsePresets?: Store['getSparsePresets']
   saveSparsePreset?: Store['saveSparsePreset']
   getMobileClientTabSelections?: Store['getMobileClientTabSelections']
@@ -4428,6 +4437,38 @@ export class OrcaRuntimeService {
       throw new Error('runtime_unavailable')
     }
     return this.store.listAutomations()
+  }
+
+  // Why reads degrade but writes throw: an agenda with no store is honestly
+  // empty, while a delete that quietly does nothing looks like it worked.
+  listCalendarEvents(): CalendarEvent[] {
+    if (!this.store?.listCalendarEvents) {
+      return []
+    }
+    return this.store.listCalendarEvents()
+  }
+
+  createCalendarEvent(input: CalendarEventCreateInput): CalendarEvent {
+    if (!this.store?.createCalendarEvent) {
+      throw new Error('Calendar storage is unavailable.')
+    }
+    return this.store.createCalendarEvent(input)
+  }
+
+  deleteCalendarEvent(id: string): void {
+    if (!this.store?.deleteCalendarEvent) {
+      throw new Error('Calendar storage is unavailable.')
+    }
+    this.store.deleteCalendarEvent(id)
+  }
+
+  buildCalendarAgenda(from: number, to: number): CalendarAgenda {
+    return buildCalendarAgendaFrom({
+      events: this.listCalendarEvents(),
+      automations: this.listAutomations(),
+      from,
+      to
+    })
   }
 
   // Why: Orca's own automation work holds the desktop probe scheduler's
