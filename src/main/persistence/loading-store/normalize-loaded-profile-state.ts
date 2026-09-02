@@ -90,6 +90,7 @@ export function normalizeLoadedProfileState(
     ),
     legacyPaneKeyAliasEntries: normalizeLegacyPaneKeyAliasEntries(parsed.legacyPaneKeyAliasEntries),
     automations: Array.isArray(parsed.automations) ? parsed.automations : [],
+    calendarEvents: Array.isArray(parsed.calendarEvents) ? parsed.calendarEvents : [],
     automationRuns: normalizeLoadedAutomationRuns(parsed, markNeedsSave),
     onboarding: normalizedOnboarding
   }

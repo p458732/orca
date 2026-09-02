@@ -1,5 +1,6 @@
 import { getArtifactsSettingsSearchEntries } from '@/components/settings/artifacts-settings-search'
 import { getAutomationsSettingsSearchEntries } from '@/components/settings/automations-settings-search'
+import { getCalendarSettingsSearchEntries } from '@/components/settings/calendar-settings-search'
 import { getBrowserPaneCombinedSearchEntries } from '@/components/settings/browser-pane-search'
 import { getCommitMessageAiPaneSearchEntries } from '@/components/settings/commit-message-ai-search'
 import { getFloatingWorkspaceSearchEntries } from '@/components/settings/floating-workspace-search'
@@ -14,6 +15,7 @@ import type { SettingsNavSection } from '@/lib/settings-navigation-types'
 import {
   BookOpen,
   CalendarClock,
+  CalendarDays,
   Files,
   GitBranch,
   Globe,
@@ -40,6 +42,17 @@ export function buildWorkflowSettingsSections(
       ),
       icon: CalendarClock,
       searchEntries: getAutomationsSettingsSearchEntries(),
+      group: 'workflows'
+    },
+    {
+      id: 'calendar',
+      title: translate('auto.hooks.useSettingsNavigationMetadata.calendarTitle', 'Calendar'),
+      description: translate(
+        'auto.hooks.useSettingsNavigationMetadata.calendarDescription',
+        'Connect a Google account and choose which calendars appear in Orca’s calendar.'
+      ),
+      icon: CalendarDays,
+      searchEntries: getCalendarSettingsSearchEntries(),
       group: 'workflows'
     },
     {

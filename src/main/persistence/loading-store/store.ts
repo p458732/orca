@@ -23,6 +23,7 @@ import type { RepoLifecycleOperations } from './repo-lifecycle-operations'
 import type { MobileTabSelectionPersistence } from './mobile-tab-selection-persistence'
 import type { SparsePresetPersistence } from './sparse-preset-persistence'
 import type { AutomationPersistence } from './automation-persistence'
+import type { CalendarEventPersistence } from './calendar-event-persistence'
 import type { MetadataLineageOperations } from './metadata-lineage-operations'
 import type { ProfilePreferences } from './profile-preferences'
 import type { SessionHostPartitionOperations } from './session-host-partitions'
@@ -106,6 +107,7 @@ export interface Store
     MobileTabSelectionPersistence,
     SparsePresetPersistence,
     AutomationPersistence,
+    CalendarEventPersistence,
     MetadataLineageOperations,
     ProfilePreferences,
     SessionHostPartitionOperations,

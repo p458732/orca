@@ -287,11 +287,33 @@ export function AppearanceWindowSidebarSection({
 
                   <SearchableSetting
                     title={translate(
+                      'auto.components.settings.AppearancePane.showCalendarButton',
+                      'Show Calendar Button'
+                    )}
+                    description={sidebarEntries[2]?.description}
+                    keywords={sidebarEntries[2]?.keywords ?? ['calendar', 'agenda', 'events']}
+                  >
+                    <SettingsSwitchRow
+                      label={translate(
+                        'auto.components.settings.AppearancePane.showCalendarButton',
+                        'Show Calendar Button'
+                      )}
+                      checked={settings.showCalendarButton !== false}
+                      onChange={() =>
+                        updateSettings({
+                          showCalendarButton: !(settings.showCalendarButton !== false)
+                        })
+                      }
+                    />
+                  </SearchableSetting>
+
+                  <SearchableSetting
+                    title={translate(
                       'auto.components.settings.AppearancePane.9da1020447',
                       'Show Orca Mobile Button'
                     )}
-                    description={sidebarEntries[2]?.description}
-                    keywords={sidebarEntries[2]?.keywords ?? ['mobile', 'phone', 'sidebar']}
+                    description={sidebarEntries[3]?.description}
+                    keywords={sidebarEntries[3]?.keywords ?? ['mobile', 'phone', 'sidebar']}
                   >
                     <SettingsSwitchRow
                       label={translate(

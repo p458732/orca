@@ -43,6 +43,10 @@ import {
   installAutomationPersistenceContext
 } from './automation-persistence'
 import {
+  CalendarEventPersistence,
+  installCalendarEventPersistenceContext
+} from './calendar-event-persistence'
+import {
   MobileTabSelectionPersistence,
   installMobileTabSelectionPersistenceContext
 } from './mobile-tab-selection-persistence'
@@ -81,6 +85,7 @@ export type StoreDomains = {
   metadata: MetadataLineageOperations
   projects: ProjectCollectionOperations
   automations: AutomationPersistence
+  calendarEvents: CalendarEventPersistence
   mobileTabSelections: MobileTabSelectionPersistence
   sparsePresets: SparsePresetPersistence
   ptyBindings: PtyBindingPersistenceOperations
@@ -97,6 +102,7 @@ export const STORE_DOMAIN_OPERATION_CLASSES = [
   MobileTabSelectionPersistence,
   SparsePresetPersistence,
   AutomationPersistence,
+  CalendarEventPersistence,
   MetadataLineageOperations,
   ProfilePreferences,
   SessionHostPartitionOperations,
@@ -116,6 +122,7 @@ export function installStoreDomainContexts(target: object, domains: StoreDomains
   installMobileTabSelectionPersistenceContext(target, domains.mobileTabSelections)
   installSparsePresetPersistenceContext(target, domains.sparsePresets)
   installAutomationPersistenceContext(target, domains.automations)
+  installCalendarEventPersistenceContext(target, domains.calendarEvents)
   installMetadataLineageOperationsContext(target, domains.metadata)
   installProfilePreferencesContext(target, domains.preferences)
   installSessionHostPartitionOperationsContext(target, domains.sessions)
@@ -149,6 +156,7 @@ export function createStoreDomains(runtime: StoreRuntimeState): StoreDomains {
   const metadata = new MetadataLineageOperations(runtime, scheduling, sessions)
   const projects = new ProjectCollectionOperations(runtime, repos, scheduling, metadata)
   const automations = new AutomationPersistence(runtime, flushBarriers, preferences)
+  const calendarEvents = new CalendarEventPersistence(runtime, flushBarriers)
   const mobileTabSelections = new MobileTabSelectionPersistence(runtime, scheduling)
   const sparsePresets = new SparsePresetPersistence(runtime, scheduling)
   const ptyBindings = new PtyBindingPersistenceOperations(runtime, sessions)
@@ -177,6 +185,7 @@ export function createStoreDomains(runtime: StoreRuntimeState): StoreDomains {
     metadata,
     projects,
     automations,
+    calendarEvents,
     mobileTabSelections,
     sparsePresets,
     ptyBindings,

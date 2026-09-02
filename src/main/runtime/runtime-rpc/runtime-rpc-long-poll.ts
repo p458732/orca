@@ -32,6 +32,11 @@ export function classifyRuntimeLongPoll(request: RpcRequest): RuntimeLongPollCla
   if (request.method === 'terminal.wait') {
     return 'wait'
   }
+  // Why: googleCalendar.connect opens a browser and blocks on the user completing
+  // sign-in, potentially minutes — same 30s idle-timeout exposure as terminal.wait.
+  if (request.method === 'googleCalendar.connect') {
+    return 'wait'
+  }
   // Agent-prompt submission waits for the PTY's lifecycle transition (up to
   // the verification budget); keep the local socket alive for that wait.
   if (

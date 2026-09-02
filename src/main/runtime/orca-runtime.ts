@@ -322,6 +322,12 @@ import type {
   AutomationWorkspaceMode
 } from '../../shared/automations-types'
 import {
+  buildCalendarAgenda as buildCalendarAgendaFrom,
+  type CalendarAgenda
+} from '../../shared/calendar-agenda'
+import { isImportedCalendarEventId, type CalendarEvent } from '../../shared/calendar-types'
+import type { CalendarEventCreateInput } from '../persistence/calendar/calendar-event-operations'
+import {
   automationChangePublications,
   type AutomationChangeSelector,
   type AutomationListParams,
@@ -817,6 +823,7 @@ import { RuntimeEmulatorCommands } from './orca-runtime-emulator'
 import type { EmulatorBridge } from '../emulator/emulator-bridge'
 import { getRuntimeFileTargetExecutionHostId, RuntimeFileCommands } from './orca-runtime-files'
 import { RuntimeGitCommands } from './orca-runtime-git'
+import { RuntimeGoogleCalendarCommands } from './orca-runtime-google-calendar'
 import {
   activateClientSessionTabSelection,
   ClientSessionTabSelectionStore,
@@ -1467,6 +1474,9 @@ type RuntimeStore = {
   createAutomation?: Store['createAutomation']
   updateAutomation?: Store['updateAutomation']
   deleteAutomation?: Store['deleteAutomation']
+  listCalendarEvents?: Store['listCalendarEvents']
+  createCalendarEvent?: Store['createCalendarEvent']
+  deleteCalendarEvent?: Store['deleteCalendarEvent']
   getSparsePresets?: Store['getSparsePresets']
   saveSparsePreset?: Store['saveSparsePreset']
   getMobileClientTabSelections?: Store['getMobileClientTabSelections']
@@ -4427,6 +4437,46 @@ export class OrcaRuntimeService {
       throw new Error('runtime_unavailable')
     }
     return this.store.listAutomations()
+  }
+
+  listCalendarEvents(): CalendarEvent[] {
+    if (!this.store?.listCalendarEvents) {
+      return []
+    }
+    return this.store.listCalendarEvents()
+  }
+
+  createCalendarEvent(input: CalendarEventCreateInput): CalendarEvent {
+    if (!this.store?.createCalendarEvent) {
+      throw new Error('Calendar storage is unavailable.')
+    }
+    return this.store.createCalendarEvent(input)
+  }
+
+  // Why: imported events (google:...) never live in the local store — an older
+  // paired client that doesn't know 'google' as a source can still render one
+  // and offer delete; without this check that request silently no-ops instead
+  // of telling the user why the event didn't go away (remote-wire-compat #3).
+  deleteCalendarEvent(id: string): void {
+    if (isImportedCalendarEventId(id)) {
+      throw new Error(
+        'This event was imported from an external calendar and is read-only. Change it in its source calendar instead.'
+      )
+    }
+    this.store?.deleteCalendarEvent?.(id)
+  }
+
+  // Why: async because reading an agenda is what refreshes a stale Google cache
+  // (staleness-on-access) — a 3am `orca calendar agenda` must not serve whatever
+  // the last settings visit happened to leave on disk.
+  async buildCalendarAgenda(from: number, to: number): Promise<CalendarAgenda> {
+    return buildCalendarAgendaFrom({
+      events: this.listCalendarEvents(),
+      externalEvents: await this.googleCalendarCommands.listGoogleAgendaEvents(),
+      automations: this.listAutomations(),
+      from,
+      to
+    })
   }
 
   // Why: Orca's own automation work holds the desktop probe scheduler's
@@ -11605,6 +11655,28 @@ export class OrcaRuntimeService {
     this.gitCommands.getRuntimeGitRemoteFileUrl.bind(this.gitCommands)
   getRuntimeGitRemoteCommitUrl: RuntimeGitCommands['getRuntimeGitRemoteCommitUrl'] =
     this.gitCommands.getRuntimeGitRemoteCommitUrl.bind(this.gitCommands)
+
+  private readonly googleCalendarCommands = new RuntimeGoogleCalendarCommands({
+    getSettings: () => this.requireStore().getSettings() as GlobalSettings,
+    updateSettings: (patch) => {
+      this.requireStore().updateSettings?.(patch, { notifyListeners: true })
+    }
+  })
+
+  getGoogleSelectedCalendarIds: RuntimeGoogleCalendarCommands['getGoogleSelectedCalendarIds'] =
+    this.googleCalendarCommands.getGoogleSelectedCalendarIds.bind(this.googleCalendarCommands)
+  setGoogleSelectedCalendars: RuntimeGoogleCalendarCommands['setGoogleSelectedCalendars'] =
+    this.googleCalendarCommands.setGoogleSelectedCalendars.bind(this.googleCalendarCommands)
+  getGoogleCalendarStatus: RuntimeGoogleCalendarCommands['getGoogleCalendarStatus'] =
+    this.googleCalendarCommands.getGoogleCalendarStatus.bind(this.googleCalendarCommands)
+  connectGoogleCalendar: RuntimeGoogleCalendarCommands['connectGoogleCalendar'] =
+    this.googleCalendarCommands.connectGoogleCalendar.bind(this.googleCalendarCommands)
+  disconnectGoogleCalendar: RuntimeGoogleCalendarCommands['disconnectGoogleCalendar'] =
+    this.googleCalendarCommands.disconnectGoogleCalendar.bind(this.googleCalendarCommands)
+  listGoogleCalendarsForAccount: RuntimeGoogleCalendarCommands['listGoogleCalendarsForAccount'] =
+    this.googleCalendarCommands.listGoogleCalendarsForAccount.bind(this.googleCalendarCommands)
+  syncGoogleCalendarNow: RuntimeGoogleCalendarCommands['syncGoogleCalendarNow'] =
+    this.googleCalendarCommands.syncGoogleCalendarNow.bind(this.googleCalendarCommands)
 
   /**
    * Installs the structured agent-session host on first use. Lazy for the same
