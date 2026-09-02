@@ -165,6 +165,7 @@ export function buildRows(
         newExternalWorktreesInboxByRepo,
         pendingByRepo,
         mixedWorktreeHostContextLabels,
+        noticeHostContextLabelByRepoId,
         lineageById,
         worktreeMap,
         nestLineage,
