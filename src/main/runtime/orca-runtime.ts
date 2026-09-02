@@ -706,10 +706,7 @@ import {
   isLegacyRepoForExternalWorktreeVisibility,
   toDetectedWorktree
 } from '../../shared/worktree/ownership'
-import {
-  hasNestedProjectWorktrees,
-  isProjectFolderScopeActive
-} from '../../shared/worktree/project-folder-scope'
+import { hasNestedProjectWorktrees } from '../../shared/worktree/project-folder-scope'
 import { isAgentScratchRepoRootPath } from '../../shared/agent-scratch-worktrees'
 import {
   createWorktreeVisibilitySourceMatcher,
@@ -26076,10 +26073,7 @@ export class OrcaRuntimeService {
     )
     // Why mirrored from the IPC listing: a runtime-hosted repo must scope its
     // sidebar the same way a locally listed one does.
-    const projectFolderScopeActive = isProjectFolderScopeActive({
-      mode: repo.projectFolderScope,
-      hasNestedWorktrees: hasNestedProjectWorktrees(repo.path, scanWorktreePaths)
-    })
+    const projectFolderScopeActive = hasNestedProjectWorktrees(repo.path, scanWorktreePaths)
     const expectedHostId = getRepoExecutionHostId(repo)
     const repoOwnerCount = store.getRepos().filter((candidate) => candidate.id === repo.id).length
     const metaById = store.getAllWorktreeMeta()

@@ -4,49 +4,28 @@ import type { WorkspaceStatusDefinition, Worktree } from '../../../../../../shar
 import { getWorkspaceStatus, getWorkspaceStatusGroupKey } from '../../workspace-status'
 import { cloneDefaultWorkspaceStatuses } from '../../../../../../shared/workspace-statuses'
 import type { AppState } from '../../../../store/types'
-import {
-  relativePathInsideRoot,
-  resolveRuntimePath
-} from '../../../../../../shared/cross-platform-path'
-import {
-  getWorktreeExecutionHostId,
-  LOCAL_EXECUTION_HOST_ID
-} from '../../../../../../shared/execution-host'
+import { LOCAL_EXECUTION_HOST_ID } from '../../../../../../shared/execution-host'
 import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import { ALL_GROUP_KEY, getPRGroupKey, getProjectGroupHeaderKey } from './group-keys'
-import { getDirectoryGroupKey, resolveWorktreeGroupingRoot } from './directory-grouping'
+import { createWorktreeGroupingRootResolver, getWorktreeDirectoryChain } from './directory-grouping'
 import { buildProjectGroupingIndex, getProjectGroupingForRepo } from './project-grouping'
 import type { ProjectGroupingModel } from './project-grouping'
 import type { WorktreeGroupBy } from './row-types'
 
-/** Directory group keys for a worktree's ancestor chain, outermost first, leaf
- *  last. Collapsing any ancestor hides the whole subtree, so reveal callers need
- *  every key, not just the leaf. Empty when the worktree sits at the grouping
- *  root (headerless there) or its repo is unknown. */
+/** Collapsing any ancestor hides the whole subtree, so reveal callers need every
+ *  key, not just the leaf. */
 function getDirectoryGroupKeyChain(
   worktree: Worktree,
   repoMap: Map<string, Repo>,
   settings: AppState['settings'] | undefined,
   defaultHostId: ExecutionHostId
 ): string[] {
-  const repo = repoMap.get(worktree.repoId)
-  if (!repo) {
-    return []
-  }
-  const root = resolveWorktreeGroupingRoot(repo, settings)
-  const relative = relativePathInsideRoot(root, worktree.path)
-  const segments = relative ? relative.split('/').filter(Boolean) : []
-  const directorySegments = segments.slice(0, -1)
-  if (directorySegments.length === 0) {
-    return []
-  }
-  const hostId = getWorktreeExecutionHostId(worktree, repo, defaultHostId)
-  return directorySegments.map((_segment, index) =>
-    getDirectoryGroupKey(
-      hostId,
-      resolveRuntimePath(root, directorySegments.slice(0, index + 1).join('/'))
-    )
-  )
+  return getWorktreeDirectoryChain({
+    worktree,
+    repoMap,
+    resolveRoot: createWorktreeGroupingRootResolver(settings),
+    defaultHostId
+  }).map((step) => step.key)
 }
 
 export function getGroupKeyForWorktree(

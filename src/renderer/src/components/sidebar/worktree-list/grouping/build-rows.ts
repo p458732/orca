@@ -150,37 +150,36 @@ export function buildRows(
     cyclicLineageIds,
     noticeHostContextLabelByRepoId
   )
+  const sectionContext: SectionAppendContext = {
+    result,
+    groupBy,
+    collapsedGroups,
+    workspaceStatuses,
+    repoMap,
+    defaultHostId,
+    hostLabelById,
+    projectIndex,
+    importedWorktreesByRepo,
+    newExternalWorktreesInboxByRepo,
+    pendingByRepo,
+    mixedWorktreeHostContextLabels,
+    noticeHostContextLabelByRepoId,
+    lineageById,
+    worktreeMap,
+    nestLineage,
+    cyclicLineageIds
+  }
+
   if (groupBy === 'directory') {
-    appendDirectorySections(
-      {
-        result,
-        groupBy,
-        collapsedGroups,
-        workspaceStatuses,
+    appendDirectorySections(sectionContext, {
+      grouping: buildDirectoryGrouping({
+        worktrees: naturalWorktrees,
         repoMap,
-        defaultHostId,
-        hostLabelById,
-        projectIndex,
-        importedWorktreesByRepo,
-        newExternalWorktreesInboxByRepo,
-        pendingByRepo,
-        mixedWorktreeHostContextLabels,
-        noticeHostContextLabelByRepoId,
-        lineageById,
-        worktreeMap,
-        nestLineage,
-        cyclicLineageIds
-      },
-      {
-        grouping: buildDirectoryGrouping({
-          worktrees: naturalWorktrees,
-          repoMap,
-          settings,
-          defaultHostId
-        }),
-        folderWorkspaces: renderableFolderWorkspaces
-      }
-    )
+        settings,
+        defaultHostId
+      }),
+      folderWorkspaces: renderableFolderWorkspaces
+    })
     return result
   }
 
@@ -244,26 +243,6 @@ export function buildRows(
     projectOrderBy,
     folderWorkspaces: renderableFolderWorkspaces
   })
-
-  const sectionContext: SectionAppendContext = {
-    result,
-    groupBy,
-    collapsedGroups,
-    workspaceStatuses,
-    repoMap,
-    defaultHostId,
-    hostLabelById,
-    projectIndex,
-    importedWorktreesByRepo,
-    newExternalWorktreesInboxByRepo,
-    pendingByRepo,
-    mixedWorktreeHostContextLabels,
-    noticeHostContextLabelByRepoId,
-    lineageById,
-    worktreeMap,
-    nestLineage,
-    cyclicLineageIds
-  }
 
   if (groupBy !== 'repo' || projectGroups.length === 0) {
     appendOrderedGroups(

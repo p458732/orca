@@ -18,10 +18,7 @@ import {
   isLegacyRepoForExternalWorktreeVisibility,
   toDetectedWorktree
 } from '../../../../shared/worktree/ownership'
-import {
-  hasNestedProjectWorktrees,
-  isProjectFolderScopeActive
-} from '../../../../shared/worktree/project-folder-scope'
+import { hasNestedProjectWorktrees } from '../../../../shared/worktree/project-folder-scope'
 import { dedupeWorktreesByPath } from '../../worktree-path-comparison'
 import {
   createWorktreeVisibilitySourceMatcher,
@@ -158,10 +155,7 @@ export function buildDetectedGitWorktrees(
   )
   // Why here: the scope is a per-repo verdict over the whole listing, and this is
   // the only place holding it — toDetectedWorktree sees one worktree at a time.
-  const projectFolderScopeActive = isProjectFolderScopeActive({
-    mode: repo.projectFolderScope,
-    hasNestedWorktrees: hasNestedProjectWorktrees(repo.path, liveWorktreePaths)
-  })
+  const projectFolderScopeActive = hasNestedProjectWorktrees(repo.path, liveWorktreePaths)
   const allMeta = allMetaOverride ?? store.getAllWorktreeMeta?.()
   const repoOwnerCount = store.getRepos().filter((candidate) => candidate.id === repo.id).length
   const detected = liveWorktrees.map((gitWorktree) => {

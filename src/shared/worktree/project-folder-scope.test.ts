@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasNestedProjectWorktrees, isProjectFolderScopeActive } from './project-folder-scope'
+import { hasNestedProjectWorktrees } from './project-folder-scope'
 
 describe('hasNestedProjectWorktrees', () => {
   const repoPath = '/home/me/fp/20260805.series'
@@ -32,20 +32,5 @@ describe('hasNestedProjectWorktrees', () => {
 
   it('matches across separator styles on Windows paths', () => {
     expect(hasNestedProjectWorktrees('C:/proj/series', ['C:\\proj\\series\\exp'])).toBe(true)
-  })
-})
-
-describe('isProjectFolderScopeActive', () => {
-  it('follows the nesting probe when the mode is unset', () => {
-    expect(isProjectFolderScopeActive({ mode: undefined, hasNestedWorktrees: true })).toBe(true)
-    expect(isProjectFolderScopeActive({ mode: undefined, hasNestedWorktrees: false })).toBe(false)
-  })
-
-  it('honours an explicit always, even with nothing nested', () => {
-    expect(isProjectFolderScopeActive({ mode: 'always', hasNestedWorktrees: false })).toBe(true)
-  })
-
-  it('honours an explicit never, even with something nested', () => {
-    expect(isProjectFolderScopeActive({ mode: 'never', hasNestedWorktrees: true })).toBe(false)
   })
 })
