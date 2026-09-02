@@ -2,18 +2,9 @@ import { CalendarDays, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { getIntlLocale, translate } from '@/i18n/i18n'
+import { translate } from '@/i18n/i18n'
 import type { WeekBounds } from './calendar-week-model'
-
-function formatWeekRange(bounds: WeekBounds): string {
-  const format = new Intl.DateTimeFormat(getIntlLocale(), {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  })
-  // The window is half-open, so the last visible day ends one ms before `to`.
-  return format.formatRange(bounds.from, bounds.to - 1)
-}
+import { formatWeekRange } from './calendar-date-formatters'
 
 export function CalendarPageHeader({
   bounds,

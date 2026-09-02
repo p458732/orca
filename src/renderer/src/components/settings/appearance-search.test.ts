@@ -31,19 +31,12 @@ describe('getLanguageEntries', () => {
   })
 })
 
-// AppearanceWindowSidebarSection looks these up positionally (sidebarEntries[n]),
-// so inserting one out of order silently mislabels a neighbouring switch.
-describe('getSidebarEntries order', () => {
-  it('matches the switch order rendered by the sidebar appearance section', () => {
-    expect(
-      getSidebarEntries()
-        .slice(0, 4)
-        .map((entry) => entry.title)
-    ).toEqual([
-      'Show Tasks Button',
-      'Show Automations Button',
-      'Show Calendar Button',
-      'Show Orca Mobile Button'
-    ])
+// AppearanceWindowSidebarSection looks these up positionally (sidebarEntries[n]).
+// The fork appends its entry rather than inserting one, so only its own index
+// needs pinning — if upstream adds an entry above it, this goes red and the
+// section's index has to move with it.
+describe('getSidebarEntries', () => {
+  it('keeps the Calendar entry at the index the appearance section reads', () => {
+    expect(getSidebarEntries()[3]?.title).toBe('Show Calendar Button')
   })
 })

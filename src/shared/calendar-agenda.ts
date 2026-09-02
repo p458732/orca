@@ -3,11 +3,11 @@ import { nextAutomationOccurrenceAfter } from './automation-schedule-occurrences
 import type { CalendarEvent } from './calendar-types'
 
 /** Hard ceiling so a wide window over an hourly rule cannot expand unbounded.
- *  Mirrors the CRON_SCAN cap in automation-schedules.ts. */
+ *  Independent of the scheduler's own CRON_SCAN_* window. */
 export const AGENDA_MAX_ENTRIES = 500
 
 export type AgendaEntry =
-  | { kind: 'event'; startAt: number; endAt: number; event: CalendarEvent }
+  | { kind: 'event'; startAt: number; event: CalendarEvent }
   | { kind: 'automation-run'; startAt: number; automationId: string; name: string }
 
 /** `truncated` means the ceiling dropped something the window really contained,
@@ -24,8 +24,9 @@ function collectEventEntries(
     .filter((event) => event.startAt < to && event.endAt >= from)
     .map((event) => ({
       kind: 'event' as const,
+      // Why startAt is copied but endAt is not: startAt is the cross-variant
+      // sort key; endAt has one reader, which already has the event in hand.
       startAt: event.startAt,
-      endAt: event.endAt,
       event
     }))
     .sort((left, right) => left.startAt - right.startAt)

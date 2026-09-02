@@ -14,7 +14,6 @@ function eventEntry(startAt: number, title: string, allDay = false): AgendaEntry
   return {
     kind: 'event',
     startAt,
-    endAt: startAt + 60 * 60 * 1000,
     event: {
       id: title,
       title,

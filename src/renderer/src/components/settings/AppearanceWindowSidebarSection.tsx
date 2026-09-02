@@ -290,8 +290,8 @@ export function AppearanceWindowSidebarSection({
                       'auto.components.settings.AppearancePane.showCalendarButton',
                       'Show Calendar Button'
                     )}
-                    description={sidebarEntries[2]?.description}
-                    keywords={sidebarEntries[2]?.keywords ?? ['calendar', 'agenda', 'events']}
+                    description={sidebarEntries[3]?.description}
+                    keywords={sidebarEntries[3]?.keywords ?? ['calendar', 'agenda', 'events']}
                   >
                     <SettingsSwitchRow
                       label={translate(
@@ -312,8 +312,8 @@ export function AppearanceWindowSidebarSection({
                       'auto.components.settings.AppearancePane.9da1020447',
                       'Show Orca Mobile Button'
                     )}
-                    description={sidebarEntries[3]?.description}
-                    keywords={sidebarEntries[3]?.keywords ?? ['mobile', 'phone', 'sidebar']}
+                    description={sidebarEntries[2]?.description}
+                    keywords={sidebarEntries[2]?.keywords ?? ['mobile', 'phone', 'sidebar']}
                   >
                     <SettingsSwitchRow
                       label={translate(

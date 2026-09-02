@@ -1,6 +1,7 @@
 import type { AgendaEntry } from '../../../../shared/calendar-agenda'
+import { DAY_MS, startOfLocalDay } from '../../../../shared/calendar-day-span'
 
-const DAY_MS = 24 * 60 * 60 * 1000
+export { startOfLocalDay }
 export const DAYS_PER_WEEK = 7
 
 export type WeekBounds = { from: number; to: number }
@@ -8,12 +9,6 @@ export type WeekBounds = { from: number; to: number }
 export type CalendarDayColumn = {
   dayStart: number
   entries: AgendaEntry[]
-}
-
-export function startOfLocalDay(timestamp: number): number {
-  const date = new Date(timestamp)
-  date.setHours(0, 0, 0, 0)
-  return date.getTime()
 }
 
 export function getWeekBounds(now: number): WeekBounds {
@@ -50,7 +45,7 @@ export function groupAgendaByDay(
     // start before `from` or run past a column; draw it on every day it covers.
     // `endAt` is the instant it stops, so a span ending at midnight owns no part
     // of the next day.
-    const lastInstant = Math.max(entry.endAt - 1, entry.startAt)
+    const lastInstant = Math.max(entry.event.endAt - 1, entry.startAt)
     const endIndex = Math.floor((lastInstant - from) / DAY_MS)
     for (
       let index = Math.max(startIndex, 0);

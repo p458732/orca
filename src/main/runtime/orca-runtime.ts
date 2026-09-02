@@ -4438,6 +4438,8 @@ export class OrcaRuntimeService {
     return this.store.listAutomations()
   }
 
+  // Why reads degrade but writes throw: an agenda with no store is honestly
+  // empty, while a delete that quietly does nothing looks like it worked.
   listCalendarEvents(): CalendarEvent[] {
     if (!this.store?.listCalendarEvents) {
       return []
@@ -4453,7 +4455,10 @@ export class OrcaRuntimeService {
   }
 
   deleteCalendarEvent(id: string): void {
-    this.store?.deleteCalendarEvent?.(id)
+    if (!this.store?.deleteCalendarEvent) {
+      throw new Error('Calendar storage is unavailable.')
+    }
+    this.store.deleteCalendarEvent(id)
   }
 
   buildCalendarAgenda(from: number, to: number): CalendarAgenda {

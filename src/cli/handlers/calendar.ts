@@ -1,4 +1,5 @@
 import type { AgendaEntry, CalendarAgenda } from '../../shared/calendar-agenda'
+import { DAY_MS } from '../../shared/calendar-day-span'
 import type { CalendarEvent } from '../../shared/calendar-types'
 import type { CommandHandler } from '../dispatch'
 import { getOptionalStringFlag, getRequiredStringFlag } from '../flags'
@@ -6,7 +7,6 @@ import { printResult } from '../format'
 import { RuntimeClientError } from '../runtime-client'
 
 const DEFAULT_WINDOW_DAYS = 7
-const DAY_MS = 24 * 60 * 60 * 1000
 const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/
 
 function invalidIsoDateTime(flagName: string): RuntimeClientError {
@@ -18,7 +18,7 @@ function invalidIsoDateTime(flagName: string): RuntimeClientError {
 
 // Why: `null` alone can't tell "not date-only shaped" (fall through to
 // Date.parse) apart from "date-only shaped but the date doesn't exist" (must
-// throw, not silently roll over) — round 2 fix, see task-5-report.md.
+// throw, not silently roll over)
 type DateOnlyMatch = { shape: 'none' } | { shape: 'invalid' } | { shape: 'valid'; ms: number }
 
 // Why: a bare date has no universal meaning — Date.parse treats it as UTC

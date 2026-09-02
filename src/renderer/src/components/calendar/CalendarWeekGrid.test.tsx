@@ -21,7 +21,6 @@ function spanEntry(startAt: number, endAt: number, title: string): AgendaEntry {
   return {
     kind: 'event',
     startAt,
-    endAt,
     event: {
       id: title,
       title,
@@ -40,7 +39,6 @@ function eventEntry(startAt: number): AgendaEntry {
   return {
     kind: 'event',
     startAt,
-    endAt: startAt + HOUR,
     event: {
       id: 'event-1',
       title: 'Dentist',

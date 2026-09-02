@@ -15,7 +15,7 @@ function methodNamed(name: string) {
 
 function makeRuntime() {
   return {
-    buildCalendarAgenda: vi.fn(async () => ({ entries: [], truncated: false })),
+    buildCalendarAgenda: vi.fn(() => ({ entries: [], truncated: false })),
     createCalendarEvent: vi.fn((input) => ({ id: 'evt-1', ...input })),
     deleteCalendarEvent: vi.fn()
   } as unknown as OrcaRuntimeService
@@ -67,7 +67,7 @@ describe('calendar rpc methods', () => {
     expect(runtime.deleteCalendarEvent).toHaveBeenCalledWith('evt-1')
   })
 
-  it('delete still removes a genuine local event', async () => {
+  it('delete forwards the id to the store', async () => {
     const storeDelete = vi.fn()
     const runtime = new OrcaRuntimeService({ deleteCalendarEvent: storeDelete } as never)
     const method = methodNamed('calendar.delete')

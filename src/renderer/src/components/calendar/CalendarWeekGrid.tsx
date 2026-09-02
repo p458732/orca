@@ -3,29 +3,15 @@ import { useNow } from '@/hooks/use-now'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import { getIntlLocale, translate } from '@/i18n/i18n'
+import { translate } from '@/i18n/i18n'
 import type { AgendaEntry } from '../../../../shared/calendar-agenda'
+import { formatClockTime, formatDayNumber, formatWeekday } from './calendar-date-formatters'
 import { startOfLocalDay, type CalendarDayColumn } from './calendar-week-model'
 
 /** Scoped to the column: a multi-day event renders one chip per column it covers. */
 function agendaEntryKey(entry: AgendaEntry, dayStart: number): string {
   const id = entry.kind === 'event' ? entry.event.id : `${entry.automationId}:${entry.startAt}`
   return `${dayStart}:${id}`
-}
-
-function formatClockTime(timestamp: number): string {
-  return new Intl.DateTimeFormat(getIntlLocale(), {
-    hour: 'numeric',
-    minute: '2-digit'
-  }).format(timestamp)
-}
-
-function formatWeekday(dayStart: number): string {
-  return new Intl.DateTimeFormat(getIntlLocale(), { weekday: 'short' }).format(dayStart)
-}
-
-function formatDayNumber(dayStart: number): string {
-  return new Intl.DateTimeFormat(getIntlLocale(), { day: 'numeric' }).format(dayStart)
 }
 
 function eventTimeLabel(entry: Extract<AgendaEntry, { kind: 'event' }>): string {
