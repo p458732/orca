@@ -1,6 +1,5 @@
 import { ArtifactsSettingsPane } from './ArtifactsSettingsPane'
 import { AutomationsSettingsPane } from './AutomationsSettingsPane'
-import { CalendarSettingsPane } from './CalendarSettingsPane'
 import { GeneralPane } from './GeneralPane'
 import { IntegrationsPane } from './IntegrationsPane'
 import { MobileSettingsPane } from './MobileSettingsPane'
@@ -174,23 +173,6 @@ export function renderShareSkillsSettingsSection(
       searchEntries={navigation.getSectionSearchEntries('share-skills')}
     >
       {view.isSectionMounted('share-skills') ? <ShareSkillsSettingsPane /> : null}
-    </SettingsSection>
-  )
-}
-
-export function renderCalendarSettingsSection(context: SettingsRenderContext): React.JSX.Element {
-  const { navigation, view } = context
-  return (
-    <SettingsSection
-      id="calendar"
-      title={translate('auto.components.settings.calendar.title', 'Calendar')}
-      description={translate(
-        'auto.components.settings.calendar.description',
-        'Connect a Google account and choose which calendars appear in Orca’s calendar.'
-      )}
-      searchEntries={navigation.getSectionSearchEntries('calendar')}
-    >
-      {view.isSectionMounted('calendar') ? <CalendarSettingsPane /> : null}
     </SettingsSection>
   )
 }

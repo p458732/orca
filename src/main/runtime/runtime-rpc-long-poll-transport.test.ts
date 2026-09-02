@@ -240,48 +240,6 @@ describe('OrcaRuntimeRpcServer', () => {
       }
     })
 
-    // Why: googleCalendar.connect holds the RPC open for minutes waiting on the
-    // user's browser sign-in — without keepalive the 30s socket idle timer
-    // would tear this down long before that flow can complete.
-    it('emits keepalive frames while googleCalendar.connect waits on the browser flow', async () => {
-      const userDataPath = mkdtempSync(join(tmpdir(), 'orca-runtime-rpc-'))
-      const runtime = new OrcaRuntimeService()
-      vi.spyOn(runtime, 'connectGoogleCalendar').mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(() => resolve({ accountEmail: 'me@example.com' }), 300)
-          })
-      )
-      const server = new OrcaRuntimeRpcServer({
-        runtime,
-        userDataPath,
-        keepaliveIntervalMs: 50
-      })
-      await server.start()
-
-      try {
-        const metadata = readRuntimeMetadata(userDataPath)
-        const session = openFramedSession(metadata!.transports[0]!.endpoint, {
-          id: 'req_connect',
-          authToken: metadata!.authToken,
-          method: 'googleCalendar.connect'
-        })
-        await session.done
-
-        const keepalives = session.frames.filter((f) => f._keepalive === true)
-        const terminals = session.frames.filter((f) => f.ok !== undefined)
-        expect(terminals).toHaveLength(1)
-        expect(terminals[0]).toMatchObject({
-          id: 'req_connect',
-          ok: true,
-          result: { connected: true, accountEmail: 'me@example.com' }
-        })
-        expect(keepalives.length).toBeGreaterThanOrEqual(3)
-      } finally {
-        await server.stop()
-      }
-    })
-
     it('emits keepalive frames while terminal.wait blocks and returns its structured timeout', async () => {
       const userDataPath = mkdtempSync(join(tmpdir(), 'orca-runtime-rpc-'))
       const runtime = new OrcaRuntimeService()

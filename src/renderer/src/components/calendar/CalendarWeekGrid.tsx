@@ -1,6 +1,5 @@
-import { CalendarArrowDown, CalendarClock, Trash2 } from 'lucide-react'
+import { CalendarClock, Trash2 } from 'lucide-react'
 import { useNow } from '@/hooks/use-now'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -33,38 +32,6 @@ function eventTimeLabel(entry: Extract<AgendaEntry, { kind: 'event' }>): string 
   return entry.event.allDay
     ? translate('auto.components.calendar.CalendarWeekGrid.allDay', 'All day')
     : formatClockTime(entry.startAt)
-}
-
-/** Provider-owned: inert on purpose — no selection, no delete, just a source mark.
- *  Keeps the solid card surface of a local event (it is still a real meeting) so it
- *  never reads like the dashed, muted automation chip. */
-function CalendarImportedEventChip({
-  entry
-}: {
-  entry: Extract<AgendaEntry, { kind: 'event' }>
-}): React.JSX.Element {
-  return (
-    <div
-      data-entry="imported-event"
-      className="rounded-md border border-border bg-card px-2 py-1.5"
-    >
-      <div className="truncate text-xs font-medium text-card-foreground">{entry.event.title}</div>
-      <div className="truncate text-[11px] text-muted-foreground">{eventTimeLabel(entry)}</div>
-      <Badge
-        variant="outline"
-        className="mt-1 max-w-full text-[11px] font-normal text-muted-foreground"
-      >
-        <CalendarArrowDown />
-        <span className="truncate">
-          {translate('auto.components.calendar.CalendarWeekGrid.importedSource', 'Google')}
-        </span>
-      </Badge>
-      {/* The missing delete control is invisible to a screen reader; say it outright. */}
-      <span className="sr-only">
-        {translate('auto.components.calendar.CalendarWeekGrid.readOnlyEvent', 'Read-only')}
-      </span>
-    </div>
-  )
 }
 
 function CalendarEventChip({
@@ -200,18 +167,13 @@ function CalendarDayCell({
                 entry={entry}
                 onOpenAutomations={onOpenAutomations}
               />
-            ) : entry.event.source === 'local' ? (
+            ) : (
               <CalendarEventChip
                 key={agendaEntryKey(entry, column.dayStart)}
                 entry={entry}
                 selected={selectedEventId === entry.event.id}
                 onSelect={onSelectEvent}
                 onDelete={onDeleteEvent}
-              />
-            ) : (
-              <CalendarImportedEventChip
-                key={agendaEntryKey(entry, column.dayStart)}
-                entry={entry}
               />
             )
           )

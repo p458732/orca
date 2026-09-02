@@ -1086,9 +1086,7 @@
         "automationsDescription": "Schedule agent work and choose whether Automations appears in the sidebar.",
         "shareSkillsTitle": "Share Skills",
         "shareSkillsDescription": "Share your skills with an unlisted link. Anyone who has it can install them.",
-        "floatingWorkspaceWebDescription": "Global terminal and markdown tabs.",
-        "calendarTitle": "Calendar",
-        "calendarDescription": "Connect a Google account and choose which calendars appear in Orca’s calendar."
+        "floatingWorkspaceWebDescription": "Global terminal and markdown tabs."
       },
       "useAppMenuPaste": {
         "pasteTooLarge": "Paste is too large."
@@ -11535,52 +11533,6 @@
         },
         "NativeChatSupportedAgents": {
           "label": "Supported agents:"
-        },
-        "calendar": {
-          "googleAccountLink": "Open Google Account connections",
-          "googleTitle": "Google Calendar",
-          "googleDescription": "Import events from your Google account so they appear beside the events you create in Orca.",
-          "loading": "Loading the Google Calendar connection",
-          "unavailable": "Google Calendar import isn’t available on this Orca host. Update the host to connect a Google account.",
-          "connectHint": "Connecting opens your browser so you can sign in to Google and choose what Orca may read.",
-          "connecting": "Waiting for your browser…",
-          "connect": "Connect Google Calendar",
-          "openCalendar": "Open Calendar",
-          "openCalendarDescription": "Review this week beside any events imported from Google.",
-          "neverSynced": "Never",
-          "accountLabel": "Google account",
-          "disconnect": "Disconnect",
-          "lastSyncedLabel": "Last synced",
-          "syncing": "Syncing…",
-          "syncNow": "Sync now",
-          "disconnectTitle": "Disconnect Google Calendar?",
-          "disconnectDescription": "This deletes the imported Google events from this computer and revokes Orca’s access to your Google account. Events you created in Orca are not affected.",
-          "cancel": "Cancel",
-          "disconnectConfirm": "Disconnect Google Calendar",
-          "calendarsLabel": "Calendars to import",
-          "calendarsDescription": "Only the calendars you select are imported into Orca.",
-          "calendarsLoading": "Loading calendars",
-          "calendarsEmpty": "No calendars found in this Google account.",
-          "primaryBadge": "Primary",
-          "title": "Calendar",
-          "description": "Connect a Google account and choose which calendars appear in Orca’s calendar.",
-          "connectSearchDescription": "Connect a Google account, choose which calendars to import, and sync them.",
-          "syncNotConnected": "Google account is not connected. Connect it above, then sync again.",
-          "syncAuthRevoked": "Google access is no longer valid. Reconnect your Google account to sync again.",
-          "syncRateLimited": "Google is limiting requests right now. This is temporary — sync again in a few minutes.",
-          "syncPageLimit": "“{{value0}}” has more events than one sync can fetch. Deselect it above, then sync again.",
-          "syncPageLimitUnnamed": "One selected calendar has more events than one sync can fetch. Deselect the calendars you do not need, then sync again.",
-          "syncNetworkError": "Could not reach Google. Check your internet connection, then sync again.",
-          "syncFailed": "The sync did not finish. Try again.",
-          "syncSynced": "Calendars synced.",
-          "syncFresh": "Calendars are already up to date.",
-          "calendarsFailed": "Could not load your Google calendars.",
-          "statusFailed": "Could not load the Google Calendar connection.",
-          "connectFailed": "Could not connect to Google. Try again.",
-          "notRevoked": "Orca’s access was removed from this computer, but Google did not confirm the revocation. Remove Orca from your Google Account under Third-party apps & services.",
-          "disconnectFailed": "Could not disconnect the Google account. Try again.",
-          "selectionFailed": "Could not save the calendar selection.",
-          "reconnect": "Reconnect"
         }
       },
       "right": {
@@ -16569,9 +16521,7 @@
           "allDay": "All day",
           "deleteEvent": "Delete event",
           "automationLabel": "Automation",
-          "emptyDay": "Nothing scheduled",
-          "importedSource": "Google",
-          "readOnlyEvent": "Read-only"
+          "emptyDay": "Nothing scheduled"
         }
       }
     },

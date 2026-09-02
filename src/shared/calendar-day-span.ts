@@ -15,8 +15,8 @@ export function shiftLocalDay(timestamp: number, days: number): number {
   return date.getTime()
 }
 
-/** All-day spans use an INCLUSIVE end (…23:59:59.999); Google's `end.date` is
- *  exclusive, so callers converting from Google must step back a day first. */
+/** All-day spans use an INCLUSIVE end (…23:59:59.999). A source with an
+ *  exclusive end date must step back a day before converting. */
 export function normalizeAllDaySpan(
   startAt: number,
   endAt: number

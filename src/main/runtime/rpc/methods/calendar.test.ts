@@ -42,7 +42,7 @@ describe('calendar rpc methods', () => {
   // a genuinely quiet week.
   it('agenda passes the truncation flag through to the client', async () => {
     const runtime = makeRuntime()
-    runtime.buildCalendarAgenda = vi.fn(async () => ({ entries: [], truncated: true }))
+    runtime.buildCalendarAgenda = vi.fn(() => ({ entries: [], truncated: true }))
     const method = methodNamed('calendar.agenda')
     const params = method.params?.parse({ from: BASE, to: BASE + HOUR })
     expect(await method.handler(params, { runtime })).toEqual({ entries: [], truncated: true })
@@ -65,18 +65,6 @@ describe('calendar rpc methods', () => {
     const method = methodNamed('calendar.delete')
     await method.handler({ id: 'evt-1' }, { runtime })
     expect(runtime.deleteCalendarEvent).toHaveBeenCalledWith('evt-1')
-  })
-
-  // Why: an older paired client that predates 'google' as a source can still
-  // render an imported event and offer delete — the host must refuse rather
-  // than silently no-op against a store that never held this id (remote-wire
-  // Rule 3: what the host publishes reaches old clients even with no wire change).
-  it('delete rejects an imported google event id and never touches the store', async () => {
-    const storeDelete = vi.fn()
-    const runtime = new OrcaRuntimeService({ deleteCalendarEvent: storeDelete } as never)
-    const method = methodNamed('calendar.delete')
-    expect(() => method.handler({ id: 'google:primary:abc123' }, { runtime })).toThrow(/imported/i)
-    expect(storeDelete).not.toHaveBeenCalled()
   })
 
   it('delete still removes a genuine local event', async () => {
