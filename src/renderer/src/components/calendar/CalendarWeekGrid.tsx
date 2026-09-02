@@ -1,4 +1,5 @@
 import { CalendarArrowDown, CalendarClock, Trash2 } from 'lucide-react'
+import { useNow } from '@/hooks/use-now'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -233,7 +234,9 @@ export function CalendarWeekGrid({
   onDeleteEvent: (eventId: string) => void
   onOpenAutomations: () => void
 }): React.JSX.Element {
-  const today = startOfLocalDay(Date.now())
+  // Why useNow: reading the clock in render is impure, and a minute tick also
+  // moves the today highlight across midnight without a remount.
+  const today = startOfLocalDay(useNow(60_000))
   return (
     <div className="grid min-h-0 flex-1 grid-cols-7 divide-x divide-border border-t border-border">
       {columns.map((column) => (

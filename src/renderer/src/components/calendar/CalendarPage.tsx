@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Info, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/store'
@@ -25,7 +25,9 @@ export default function CalendarPage(): React.JSX.Element {
   } = useCalendarWeekAgenda()
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
-  const newEventStartAt = useMemo(() => defaultEventStartAt(bounds, Date.now()), [bounds])
+  // Why resolved on open rather than in render: `Date.now()` during render is
+  // impure, and the default only has to be right at the moment the dialog opens.
+  const [newEventStartAt, setNewEventStartAt] = useState(0)
 
   return (
     <main className="flex h-full min-h-0 flex-col bg-background">
@@ -35,7 +37,10 @@ export default function CalendarPage(): React.JSX.Element {
         onPreviousWeek={showPreviousWeek}
         onNextWeek={showNextWeek}
         onThisWeek={showThisWeek}
-        onAddEvent={() => setAddOpen(true)}
+        onAddEvent={() => {
+          setNewEventStartAt(defaultEventStartAt(bounds, Date.now()))
+          setAddOpen(true)
+        }}
       />
       {error ? (
         <div
