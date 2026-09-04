@@ -1,4 +1,4 @@
-import { compareAppVersions, isValidAppVersion } from './app-version'
+import { compareAppVersions, hasPrereleaseIdentifier, isValidAppVersion } from './app-version'
 
 export type ReleaseChannel = 'stable' | 'rc' | 'hourly' | 'daily' | 'adhoc'
 
@@ -29,6 +29,10 @@ export const MAIN_RELEASE_REPO = 'stablyai/orca'
 export const HOURLY_PRERELEASE_IDENTIFIER = 'hourly'
 export const DAILY_PRERELEASE_IDENTIFIER = 'daily'
 export const ADHOC_PRERELEASE_IDENTIFIER = 'adhoc'
+/** Why it lives beside the published channels: a personal build is stamped like one, so
+ *  the classifier has to know the identifier to avoid filing it under a channel it can
+ *  neither install from nor switch away from. */
+export const PERSONAL_PRERELEASE_IDENTIFIER = 'personal'
 
 /** The dev channels, each published to its own repo rather than the main one. */
 const DEDICATED_REPO_CHANNELS = ['hourly', 'daily', 'adhoc'] as const
@@ -230,6 +234,11 @@ export function getVersionChannel(version: string): ReleaseChannel | null {
   }
   if (isAdhocVersion(normalized)) {
     return 'adhoc'
+  }
+  // Why null rather than a channel: a personal build is published nowhere, so claiming
+  // rc would show the user a channel they are not on and cannot install from.
+  if (hasPrereleaseIdentifier(normalized, PERSONAL_PRERELEASE_IDENTIFIER)) {
+    return null
   }
   // Why the dev channels are tested first: they are prereleases too, so this
   // catch-all would otherwise file every one of them under rc.
