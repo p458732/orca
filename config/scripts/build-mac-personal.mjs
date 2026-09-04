@@ -42,7 +42,15 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename
   console.log(`[build:mac:personal] version ${identity.version} (updater disabled)`)
   execFileSync(
     process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
-    ['exec', 'electron-builder', '--config', 'config/electron-builder.config.cjs', '--mac'],
+    [
+      'exec',
+      'electron-builder',
+      '--config',
+      'config/electron-builder.config.cjs',
+      '--mac',
+      // Passthrough so a single-arch build (`-- --arm64`) does not need its own script.
+      ...process.argv.slice(2)
+    ],
     {
       env: {
         ...process.env,
