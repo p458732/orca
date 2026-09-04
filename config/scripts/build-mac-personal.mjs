@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 /**
@@ -37,8 +37,34 @@ export function getPersonalBuildIdentity() {
   }
 }
 
+const COMPUTER_USE_HELPER = 'native/computer-use-macos/.build/release/Orca Computer Use.app'
+
+/**
+ * The helper needs Swift Package Manager, which needs a full Xcode — Command Line
+ * Tools cannot resolve the platform SDK path. Rather than refusing to package, drop
+ * it and say so, loudly: the resulting build works except for computer use.
+ */
+function resolveComputerUseHelper() {
+  if (existsSync(resolve(COMPUTER_USE_HELPER))) {
+    return { skip: false }
+  }
+  console.warn(
+    [
+      '',
+      '  ⚠  Computer-use helper not built — packaging without it.',
+      '     Computer use will be unavailable in this build. To include it:',
+      '       1. install Xcode, then: sudo xcode-select -s /Applications/Xcode.app',
+      '       2. pnpm run build:computer-macos',
+      '       3. re-run this command',
+      ''
+    ].join('\n')
+  )
+  return { skip: true }
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename)) {
   const identity = getPersonalBuildIdentity()
+  const { skip } = resolveComputerUseHelper()
   console.log(`[build:mac:personal] version ${identity.version} (updater disabled)`)
   execFileSync(
     process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
@@ -55,7 +81,8 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename
       env: {
         ...process.env,
         ORCA_BUILD_COMMIT: identity.commit,
-        ORCA_LOCAL_BUILD_VERSION: identity.version
+        ORCA_LOCAL_BUILD_VERSION: identity.version,
+        ...(skip ? { ORCA_SKIP_COMPUTER_USE_HELPER: '1' } : {})
       },
       stdio: 'inherit'
     }
