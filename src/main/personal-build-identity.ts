@@ -1,5 +1,6 @@
 import { app } from 'electron'
 import { is } from '@electron-toolkit/utils'
+import { hasPrereleaseIdentifier } from '../shared/app-version'
 
 /**
  * Why the marker rides the version string: a personal build keeps the official
@@ -11,11 +12,7 @@ export const PERSONAL_BUILD_CHANNEL = 'personal'
 
 /** A locally packaged build carrying changes that no published release has. */
 export function isPersonalBuild(version: string = app.getVersion()): boolean {
-  // Why parse rather than substring-match: stamping onto a prerelease base yields
-  // `1.4.195-rc.1.personal.…`, so a leading-hyphen marker would miss exactly the
-  // case where silently re-enabling updates does the most damage.
-  const prerelease = version.split('+')[0].split('-').slice(1).join('-')
-  return prerelease.split('.').includes(PERSONAL_BUILD_CHANNEL)
+  return hasPrereleaseIdentifier(version, PERSONAL_BUILD_CHANNEL)
 }
 
 /**

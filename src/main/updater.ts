@@ -1,7 +1,6 @@
 /* eslint-disable max-lines */
 import { app, BrowserWindow, powerMonitor } from 'electron'
-import { is } from '@electron-toolkit/utils'
-import { isPersonalBuild, isUpdaterDisabledForBuild } from './personal-build-identity'
+import { isUpdaterDisabledForBuild } from './personal-build-identity'
 import type {
   LinuxPackageInstallInstructions,
   LinuxPackageInstallRecovery,
@@ -2197,14 +2196,7 @@ export function setupAutoUpdater(
     sendErrorStatus(`The server update did not complete: ${serveHandoffFailure}`, true)
   }
 
-  if (!app.isPackaged && !is.dev) {
-    return
-  }
-  if (is.dev) {
-    return
-  }
-  // Why: a personal build's changes exist in no release, so every update is a loss.
-  if (isPersonalBuild()) {
+  if (isUpdaterDisabledForBuild()) {
     return
   }
 

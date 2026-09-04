@@ -24,4 +24,9 @@ describe('isPersonalBuild', () => {
     expect(isPersonalBuild('1.4.195-personalized')).toBe(false)
     expect(isPersonalBuild('1.4.195+personal.1')).toBe(false)
   })
+
+  it('rejects anything that is not a version', () => {
+    expect(isPersonalBuild('not-a-version-personal.1')).toBe(false)
+    expect(isPersonalBuild('')).toBe(false)
+  })
 })

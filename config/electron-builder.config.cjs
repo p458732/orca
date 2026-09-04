@@ -61,10 +61,16 @@ const devChannelRepo = isHourlyChannel
     : isAdhocChannel
       ? 'orca-adhoc'
       : null
-// Why: the computer-use helper is the one native artifact that needs Swift Package
+// Why: the computer-use helper is the one native artifact built through Swift Package
 // Manager, and SPM needs a full Xcode install — Command Line Tools cannot resolve the
-// platform SDK path. Machines without Xcode opt out rather than being unable to package.
+// platform SDK path, so `swift build` fails and no dmg can be produced at all. Machines
+// without Xcode opt out explicitly; the flag stays an input so this config remains a pure
+// function of its environment rather than of the local filesystem.
 const skipComputerUseHelper = process.env.ORCA_SKIP_COMPUTER_USE_HELPER === '1'
+const computerUseHelperResource = {
+  from: 'native/computer-use-macos/.build/release/Orca Computer Use.app',
+  to: 'Orca Computer Use.app'
+}
 const appId = 'com.stablyai.orca'
 const featureWallResources = {
   from: 'resources/onboarding/feature-wall',
@@ -440,14 +446,7 @@ module.exports = {
         from: 'node_modules/agent-browser/bin/agent-browser-darwin-${arch}',
         to: 'agent-browser-darwin-${arch}'
       },
-      ...(skipComputerUseHelper
-        ? []
-        : [
-            {
-              from: 'native/computer-use-macos/.build/release/Orca Computer Use.app',
-              to: 'Orca Computer Use.app'
-            }
-          ]),
+      ...(skipComputerUseHelper ? [] : [computerUseHelperResource]),
       featureWallResources
     ],
     // Why: the notification-status helper must execute from Contents/MacOS —
