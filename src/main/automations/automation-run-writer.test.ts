@@ -17,6 +17,7 @@ function writerWith(selector: ReturnType<Store['automationChangeSelector']>) {
   const store = {
     createAutomationRun: vi.fn(() => ({ id: 'run-1', automationId: 'auto-1' }) as AutomationRun),
     updateAutomationRun: vi.fn(() => ({ id: 'run-1', automationId: 'auto-1' }) as AutomationRun),
+    recordAutomationLifetimeUsage: vi.fn(() => null),
     automationChangeSelector
   } as unknown as Store
   return {

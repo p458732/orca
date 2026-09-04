@@ -11,6 +11,8 @@ import { formatAutomationDateTimeWithRelative } from './automation-page-parts'
 import {
   formatAutomationCost,
   formatAutomationTokens,
+  formatAutomationUsagePerRun,
+  getAutomationUsagePerRun,
   summarizeAutomationRunUsage
 } from './automation-usage-model'
 import type { AutomationTargetAvailability } from './automation-target-availability'
@@ -131,6 +133,16 @@ export function AutomationDetail({
       : usageSummary.unavailableRuns > 0
         ? 'Unavailable'
         : 'No runs'
+  // Why: retained runs are pruned, so the lifetime record is the only total that keeps
+  // growing. Automations that predate it fall back to what the run table still holds.
+  const lifetimeUsage = automation.lifetimeUsage
+  const spendUsage = lifetimeUsage ?? usageSummary
+  const perRunLabel = formatAutomationUsagePerRun(getAutomationUsagePerRun(spendUsage))
+  const spendScopeTitle = lifetimeUsage
+    ? `Lifetime across ${lifetimeUsage.knownRuns} runs${
+        lifetimeUsage.since ? ` since ${new Date(lifetimeUsage.since).toLocaleDateString()}` : ''
+      }`
+    : `Retained runs only (${usageCoverage})`
   const agentLabel =
     getAgentCatalog().find((agent) => agent.id === automation.agentId)?.label ?? automation.agentId
   const runLocationLabel =
@@ -302,11 +314,18 @@ export function AutomationDetail({
         />
         <DetailMetric
           label={translate('auto.components.automations.AutomationDetail.401f40ae79', 'Est. spend')}
-          value={formatAutomationCost(usageSummary.estimatedCostUsd)}
+          value={formatAutomationCost(spendUsage.estimatedCostUsd)}
+          title={spendScopeTitle}
         />
         <DetailMetric
           label={translate('auto.components.automations.AutomationDetail.449fc83bf7', 'Tokens')}
-          value={formatAutomationTokens(usageSummary.totalTokens)}
+          value={formatAutomationTokens(spendUsage.totalTokens)}
+          title={spendScopeTitle}
+        />
+        <DetailMetric
+          label={translate('auto.components.automations.AutomationDetail.avgPerRun', 'Avg / run')}
+          value={perRunLabel}
+          title={spendScopeTitle}
         />
         <DetailMetric
           label={translate(

@@ -1,3 +1,4 @@
+import type { AutomationLifetimeUsage } from './automation-lifetime-usage'
 import type { TuiAgent } from './tui-agent'
 import type { SetupDecision } from './worktree/create-types'
 import type { TaskSourceContext, WorkspaceRunContext } from './task-source-context'
@@ -126,6 +127,9 @@ export type Automation = {
   enabled: boolean
   nextRunAt: number
   lastRunAt?: number
+  /** Why: run retention prunes the rows the summary is computed from, so a frequent
+   *  automation's spend would reset roughly daily. Accumulated per completed run. */
+  lifetimeUsage?: AutomationLifetimeUsage
   missedRunPolicy: AutomationMissedRunPolicy
   missedRunGraceMinutes: number
   createdAt: number
