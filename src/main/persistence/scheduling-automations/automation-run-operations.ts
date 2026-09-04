@@ -52,11 +52,15 @@ function touchAutomationForCompletedRun(
     run,
     state.automationRuns ?? []
   )
+  // Why stored on the automation: the next run bills only the growth since these
+  // counters, and run retention would prune the row they would otherwise ride on.
+  const usageAttributionCursor = run.usage?.sessionTotals ?? undefined
   const updated: Automation = {
     ...current,
     lastRunAt: now,
     updatedAt: now,
-    ...(lifetimeUsage ? { lifetimeUsage } : {})
+    ...(lifetimeUsage ? { lifetimeUsage } : {}),
+    ...(usageAttributionCursor ? { usageAttributionCursor } : {})
   }
   // Replaced, not patched in place: the list projection caches on array identity.
   state.automations = state.automations.map((entry) =>

@@ -1,14 +1,19 @@
 import type { AutomationRunUsage } from '../../shared/automations-types'
+import type { AutomationProviderSessionTotals } from '../../shared/automation-provider-session-totals'
+import {
+  isProviderSessionActiveInRunWindow,
+  subtractProviderSessionTotals
+} from '../usage/automation-run-session-window'
 import type { CodexUsagePersistedState } from './types'
 import { estimateCostUsd } from './codex-usage-cost-estimate'
-
-const AUTOMATION_ATTRIBUTION_WINDOW_MS = 5 * 60_000
 
 export type AutomationUsageLookupInput = {
   worktreeId: string | null
   terminalSessionId: string | null
   startedAt: number | null
   completedAt: number | null
+  /** Session counters at this automation's last attributed run, if any. */
+  previousSessionTotals?: AutomationProviderSessionTotals | null
 }
 
 type CodexAutomationAttributionDeps = {
@@ -68,22 +73,19 @@ export async function resolveCodexAutomationRunUsage(
     return unavailable('scan_failed', scanState.lastScanError)
   }
 
-  const windowStart = input.startedAt - AUTOMATION_ATTRIBUTION_WINDOW_MS
-  const windowEnd = input.completedAt + AUTOMATION_ATTRIBUTION_WINDOW_MS
-  const candidates = deps.getState().sessions.filter((session) => {
-    const first = new Date(session.firstTimestamp).getTime()
-    const last = new Date(session.lastTimestamp).getTime()
-    if (!Number.isFinite(first) || !Number.isFinite(last)) {
-      return false
-    }
-    if (session.sessionId === input.terminalSessionId) {
-      return true
-    }
-    if (first < windowStart || first > windowEnd || last > windowEnd) {
-      return false
-    }
-    return session.locationBreakdown.some((entry) => entry.worktreeId === input.worktreeId)
-  })
+  const candidates = deps.getState().sessions.filter(
+    (session) =>
+      isProviderSessionActiveInRunWindow({
+        sessionId: session.sessionId,
+        firstTimestamp: session.firstTimestamp,
+        lastTimestamp: session.lastTimestamp,
+        terminalSessionId: input.terminalSessionId,
+        startedAt: input.startedAt as number,
+        completedAt: input.completedAt as number
+      }) &&
+      (session.sessionId === input.terminalSessionId ||
+        session.locationBreakdown.some((entry) => entry.worktreeId === input.worktreeId))
+  )
 
   if (candidates.length === 0) {
     return unavailable('no_matching_session', 'No Codex usage session matched this run.')
@@ -119,6 +121,16 @@ export async function resolveCodexAutomationRunUsage(
       totalTokens: 0
     }
   )
+  // Only this run's share: a reused session already carries every earlier run's events.
+  const billed = subtractProviderSessionTotals(
+    totals,
+    session.sessionId,
+    input.previousSessionTotals
+  )
+  // Why prorated rather than recomputed: cost comes from per-model rows, which the cursor
+  // does not carry, so the delta can only be applied as a share of the session's tokens.
+  const billedCostShare =
+    billed === totals ? 1 : totals.totalTokens > 0 ? billed.totalTokens / totals.totalTokens : 0
   const scopedModelRows = session.locationModelBreakdown.filter(
     (entry) => entry.worktreeId === input.worktreeId
   )
@@ -161,19 +173,20 @@ export async function resolveCodexAutomationRunUsage(
         : session.hasMixedModels
           ? 'Mixed models'
           : session.primaryModel,
-    inputTokens: totals.inputTokens,
-    outputTokens: totals.outputTokens,
-    cacheReadTokens: totals.cachedInputTokens,
+    inputTokens: billed.inputTokens,
+    outputTokens: billed.outputTokens,
+    cacheReadTokens: billed.cachedInputTokens,
     cacheWriteTokens: null,
-    reasoningOutputTokens: totals.reasoningOutputTokens,
-    totalTokens: totals.totalTokens,
-    estimatedCostUsd: hasKnownCost ? estimatedCostUsd : null,
+    reasoningOutputTokens: billed.reasoningOutputTokens,
+    totalTokens: billed.totalTokens,
+    estimatedCostUsd: hasKnownCost ? estimatedCostUsd * billedCostShare : null,
     estimatedCostSource: hasKnownCost ? 'api_equivalent' : null,
     providerSessionId: session.sessionId,
-    // Why: Orca terminal tab ids and Codex usage session ids are different
-    // systems today, so attribution is intentionally limited to one local
-    // provider session in the run's worktree/time window.
-    attribution: 'provider_session_time_window',
+    // Why: Orca terminal tab ids and Codex usage session ids are different systems
+    // today, so attribution is limited to one local provider session in the run's
+    // worktree/time window — billed as its growth since the previous run.
+    attribution: billed === totals ? 'provider_session_time_window' : 'provider_session_delta',
+    sessionTotals: { providerSessionId: session.sessionId, totals },
     collectedAt,
     unavailableReason: null,
     unavailableMessage: null

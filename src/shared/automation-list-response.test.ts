@@ -36,6 +36,43 @@ describe('validateAutomationListResponse', () => {
     expect(result.ok && 'orphanCount' in result.result).toBe(false)
   })
 
+  // Why validated rather than cast: these numbers reach a per-run average that divides
+  // by knownRuns, so a host sending a string would propagate NaN into every total.
+  it('keeps a well-formed lifetime usage record', () => {
+    const lifetimeUsage = {
+      knownRuns: 4,
+      costedRuns: 3,
+      inputTokens: 1,
+      outputTokens: 2,
+      cacheTokens: 3,
+      reasoningOutputTokens: 0,
+      totalTokens: 6,
+      estimatedCostUsd: 0.25,
+      since: 1,
+      lastRunId: 'r9'
+    }
+    const result = validateAutomationListResponse(
+      response({ automations: [{ id: 'a1', lifetimeUsage }, { id: 'a2' }] }),
+      SELF
+    )
+    expect(result.ok && result.result.automations[0].lifetimeUsage).toEqual(lifetimeUsage)
+  })
+
+  it('drops a malformed lifetime usage record without dropping the automation', () => {
+    const result = validateAutomationListResponse(
+      response({
+        automations: [
+          { id: 'a1', lifetimeUsage: { knownRuns: 'lots', totalTokens: 6 } },
+          { id: 'a2' }
+        ]
+      }),
+      SELF
+    )
+    expect(result).toMatchObject({ ok: true, invalidRows: 0 })
+    expect(result.ok && result.result.automations.map((entry) => entry.id)).toEqual(['a1', 'a2'])
+    expect(result.ok && 'lifetimeUsage' in result.result.automations[0]).toBe(false)
+  })
+
   it('reports a legacy-shaped payload as unsupported host scope', () => {
     const result = validateAutomationListResponse({ automations: [{ id: 'a1' }] }, SELF)
     expect(result).toMatchObject({ ok: false, error: { code: 'unsupported_host_scope' } })

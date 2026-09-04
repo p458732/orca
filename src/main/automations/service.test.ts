@@ -488,6 +488,7 @@ describe('AutomationService', () => {
     expect(getAutomationRunUsage).toHaveBeenCalledWith({
       worktreeId: 'wt1',
       terminalSessionId: 'tab-1',
+      previousSessionTotals: null,
       startedAt: expect.any(Number),
       completedAt: expect.any(Number)
     })
