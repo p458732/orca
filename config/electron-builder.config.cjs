@@ -67,6 +67,13 @@ const devChannelRepo = isHourlyChannel
 // without Xcode opt out explicitly; the flag stays an input so this config remains a pure
 // function of its environment rather than of the local filesystem.
 const skipComputerUseHelper = process.env.ORCA_SKIP_COMPUTER_USE_HELPER === '1'
+// Why an env var and not electron-builder's `--arm64`: the mac targets below pin `arch`
+// explicitly, and a config-pinned arch list wins over the CLI flag — so a local build
+// always produced both slices and took twice as long.
+const macTargetArchs = (process.env.ORCA_MAC_ARCHS || 'x64,arm64')
+  .split(',')
+  .map((arch) => arch.trim())
+  .filter(Boolean)
 const computerUseHelperResource = {
   from: 'native/computer-use-macos/.build/release/Orca Computer Use.app',
   to: 'Orca Computer Use.app'
@@ -465,11 +472,11 @@ module.exports = {
     target: [
       {
         target: 'dmg',
-        arch: ['x64', 'arm64']
+        arch: macTargetArchs
       },
       {
         target: 'zip',
-        arch: ['x64', 'arm64']
+        arch: macTargetArchs
       }
     ]
   },
