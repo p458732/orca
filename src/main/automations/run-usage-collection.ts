@@ -81,7 +81,8 @@ export async function collectAutomationRunUsage({
       worktreeId: run.workspaceId,
       terminalSessionId: run.terminalSessionId,
       startedAt: run.startedAt,
-      completedAt: collectedAt
+      completedAt: collectedAt,
+      previousSessionTotals: automation.usageAttributionCursor ?? null
     })
   }
   if (automation.agentId === 'codex') {
@@ -92,7 +93,8 @@ export async function collectAutomationRunUsage({
       worktreeId: run.workspaceId,
       terminalSessionId: run.terminalSessionId,
       startedAt: run.startedAt,
-      completedAt: collectedAt
+      completedAt: collectedAt,
+      previousSessionTotals: automation.usageAttributionCursor ?? null
     })
   }
   return unavailable(null, 'provider_unsupported', 'This agent does not report usage to Orca yet.')

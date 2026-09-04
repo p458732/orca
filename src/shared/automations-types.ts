@@ -1,4 +1,5 @@
 import type { AutomationLifetimeUsage } from './automation-lifetime-usage'
+import type { AutomationProviderSessionTotals } from './automation-provider-session-totals'
 import type { TuiAgent } from './tui-agent'
 import type { SetupDecision } from './worktree/create-types'
 import type { TaskSourceContext, WorkspaceRunContext } from './task-source-context'
@@ -34,7 +35,12 @@ export function isFinalAutomationRunStatus(status: AutomationRunStatus): boolean
 export type AutomationSchedulePreset = 'hourly' | 'daily' | 'weekdays' | 'weekly' | 'custom'
 export type AutomationRunUsageProvider = 'claude' | 'codex'
 export type AutomationRunUsageStatus = 'known' | 'unavailable'
-export type AutomationRunUsageAttribution = 'provider_session_time_window'
+export type AutomationRunUsageAttribution =
+  | 'provider_session_time_window'
+  /** The run's share of a provider session it shares with earlier runs — see
+   *  `AutomationProviderSessionTotals`. */
+  | 'provider_session_delta'
+
 export type AutomationRunUsageUnavailableReason =
   | 'run_not_finished'
   | 'provider_unsupported'
@@ -58,6 +64,9 @@ export type AutomationRunUsage = {
   estimatedCostSource: 'api_equivalent' | null
   providerSessionId: string | null
   attribution: AutomationRunUsageAttribution | null
+  /** Absolute session counters behind this run's numbers, so the next run can subtract
+   *  them. Absent on unavailable usage and on records written before delta attribution. */
+  sessionTotals?: AutomationProviderSessionTotals | null
   collectedAt: number
   unavailableReason: AutomationRunUsageUnavailableReason | null
   unavailableMessage: string | null
@@ -130,6 +139,9 @@ export type Automation = {
   /** Why: run retention prunes the rows the summary is computed from, so a frequent
    *  automation's spend would reset roughly daily. Accumulated per completed run. */
   lifetimeUsage?: AutomationLifetimeUsage
+  /** Session counters at the last attributed run, so the next one can bill only its own
+   *  growth. Lives here rather than on a run because retention prunes runs. */
+  usageAttributionCursor?: AutomationProviderSessionTotals
   missedRunPolicy: AutomationMissedRunPolicy
   missedRunGraceMinutes: number
   createdAt: number

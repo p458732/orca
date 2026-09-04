@@ -9,6 +9,7 @@
  * selector that does not match the request is never reclassified into Self.
  */
 
+import type { AutomationLifetimeUsage } from './automation-lifetime-usage'
 import type { Automation } from './automations-types'
 import type { AutomationUsageSummary } from './automation-usage-summary'
 import {
@@ -36,10 +37,44 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
+const LIFETIME_USAGE_FIELDS = [
+  'knownRuns',
+  'inputTokens',
+  'outputTokens',
+  'cacheTokens',
+  'reasoningOutputTokens',
+  'totalTokens'
+] as const
+
+/** Why the numbers are checked and the rest is not: these reach arithmetic — a per-run
+ *  average divides by `knownRuns` — so a host sending a string or null would propagate
+ *  NaN into every total downstream. A malformed record loses its totals, not its row. */
+function parseLifetimeUsage(value: unknown): AutomationLifetimeUsage | null {
+  if (!isRecord(value)) {
+    return null
+  }
+  if (!LIFETIME_USAGE_FIELDS.every((field) => typeof value[field] === 'number')) {
+    return null
+  }
+  const cost = value.estimatedCostUsd
+  return cost === null || typeof cost === 'number' ? (value as AutomationLifetimeUsage) : null
+}
+
 function parseAutomation(value: unknown): Automation | null {
-  return isRecord(value) && typeof value.id === 'string' && value.id.length > 0
-    ? (value as Automation)
-    : null
+  if (!isRecord(value) || typeof value.id !== 'string' || value.id.length === 0) {
+    return null
+  }
+  const automation = value as Automation
+  if (automation.lifetimeUsage === undefined) {
+    return automation
+  }
+  const lifetimeUsage = parseLifetimeUsage(automation.lifetimeUsage)
+  return lifetimeUsage ? { ...automation, lifetimeUsage } : omitLifetimeUsage(automation)
+}
+
+function omitLifetimeUsage(automation: Automation): Automation {
+  const { lifetimeUsage: _lifetimeUsage, ...rest } = automation
+  return rest
 }
 
 const USAGE_SUMMARY_FIELDS = [

@@ -61,7 +61,26 @@ function automationUsageSummaries(state: PersistedState) {
       runsByAutomation.set(run.automationId, [run])
     }
   }
-  return new Map([...runsByAutomation].map(([id, runs]) => [id, summarizeAutomationRunUsage(runs)]))
+  const lifetimeById = new Map(
+    (state.automations ?? []).flatMap((automation) =>
+      automation.lifetimeUsage ? [[automation.id, automation.lifetimeUsage] as const] : []
+    )
+  )
+  return new Map(
+    [...runsByAutomation].map(([id, runs]) => {
+      const summary = summarizeAutomationRunUsage(runs)
+      const lifetime = lifetimeById.get(id)
+      if (!lifetime) {
+        return [id, summary] as const
+      }
+      // Why lifetime wins: retention prunes the runs `summary` sums, so the list would
+      // otherwise show a smaller spend than the detail pane for the same automation.
+      // Only the totals are replaced — `unavailableRuns` and the last-run fields stay
+      // facts about the retained history, which is what the list filters read.
+      const { since: _since, lastRunId: _lastRunId, ...totals } = lifetime
+      return [id, { ...summary, ...totals }] as const
+    })
+  )
 }
 
 function folderWorkspaceHostState(state: PersistedState): FolderWorkspaceHostState {

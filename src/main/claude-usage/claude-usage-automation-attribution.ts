@@ -1,14 +1,19 @@
 import type { AutomationRunUsage } from '../../shared/automations-types'
+import type { AutomationProviderSessionTotals } from '../../shared/automation-provider-session-totals'
+import {
+  isProviderSessionActiveInRunWindow,
+  subtractProviderSessionTotals
+} from '../usage/automation-run-session-window'
 import type { ClaudeUsagePersistedState } from './types'
 import { estimateCostUsd } from './claude-model-pricing'
-
-const AUTOMATION_ATTRIBUTION_WINDOW_MS = 5 * 60_000
 
 export type AutomationUsageLookupInput = {
   worktreeId: string | null
   terminalSessionId: string | null
   startedAt: number | null
   completedAt: number | null
+  /** Session counters at this automation's last attributed run, if any. */
+  previousSessionTotals?: AutomationProviderSessionTotals | null
 }
 
 type ClaudeUsageStateAccess = {
@@ -67,22 +72,19 @@ export async function resolveAutomationRunUsage(
     return unavailable('scan_failed', scanState.lastScanError)
   }
 
-  const windowStart = input.startedAt - AUTOMATION_ATTRIBUTION_WINDOW_MS
-  const windowEnd = input.completedAt + AUTOMATION_ATTRIBUTION_WINDOW_MS
-  const candidates = access.getState().sessions.filter((session) => {
-    const first = new Date(session.firstTimestamp).getTime()
-    const last = new Date(session.lastTimestamp).getTime()
-    if (!Number.isFinite(first) || !Number.isFinite(last)) {
-      return false
-    }
-    if (session.sessionId === input.terminalSessionId) {
-      return true
-    }
-    if (first < windowStart || first > windowEnd || last > windowEnd) {
-      return false
-    }
-    return session.locationBreakdown.some((entry) => entry.worktreeId === input.worktreeId)
-  })
+  const candidates = access.getState().sessions.filter(
+    (session) =>
+      isProviderSessionActiveInRunWindow({
+        sessionId: session.sessionId,
+        firstTimestamp: session.firstTimestamp,
+        lastTimestamp: session.lastTimestamp,
+        terminalSessionId: input.terminalSessionId,
+        startedAt: input.startedAt as number,
+        completedAt: input.completedAt as number
+      }) &&
+      (session.sessionId === input.terminalSessionId ||
+        session.locationBreakdown.some((entry) => entry.worktreeId === input.worktreeId))
+  )
 
   if (candidates.length === 0) {
     return unavailable('no_matching_session', 'No Claude usage session matched this run.')
@@ -118,33 +120,40 @@ export async function resolveAutomationRunUsage(
       cacheWrite1hTokens: 0
     }
   )
+  // Only this run's share: a reused session already carries every earlier run's turns.
+  const billed = subtractProviderSessionTotals(
+    totals,
+    session.sessionId,
+    input.previousSessionTotals
+  )
   const estimatedCostUsd = estimateCostUsd(
     session.model,
-    totals.inputTokens,
-    totals.outputTokens,
-    totals.cacheReadTokens,
-    totals.cacheWriteTokens,
-    totals.cacheWrite1hTokens
+    billed.inputTokens,
+    billed.outputTokens,
+    billed.cacheReadTokens,
+    billed.cacheWriteTokens,
+    billed.cacheWrite1hTokens
   )
 
   return {
     status: 'known',
     provider: 'claude',
     model: session.model,
-    inputTokens: totals.inputTokens,
-    outputTokens: totals.outputTokens,
-    cacheReadTokens: totals.cacheReadTokens,
-    cacheWriteTokens: totals.cacheWriteTokens,
+    inputTokens: billed.inputTokens,
+    outputTokens: billed.outputTokens,
+    cacheReadTokens: billed.cacheReadTokens,
+    cacheWriteTokens: billed.cacheWriteTokens,
     reasoningOutputTokens: null,
     totalTokens:
-      totals.inputTokens + totals.outputTokens + totals.cacheReadTokens + totals.cacheWriteTokens,
+      billed.inputTokens + billed.outputTokens + billed.cacheReadTokens + billed.cacheWriteTokens,
     estimatedCostUsd,
     estimatedCostSource: estimatedCostUsd === null ? null : 'api_equivalent',
     providerSessionId: session.sessionId,
     // Why: Orca terminal tab ids and Claude usage session ids are different
-    // systems today, so attribution is intentionally limited to one local
-    // provider session in the run's worktree/time window.
-    attribution: 'provider_session_time_window',
+    // systems today, so attribution is limited to one local provider session in the
+    // run's worktree/time window — billed as its growth since the previous run.
+    attribution: billed === totals ? 'provider_session_time_window' : 'provider_session_delta',
+    sessionTotals: { providerSessionId: session.sessionId, totals },
     collectedAt,
     unavailableReason: null,
     unavailableMessage: null
