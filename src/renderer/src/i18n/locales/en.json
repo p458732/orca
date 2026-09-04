@@ -15356,6 +15356,7 @@
           "showMore": "Show more"
         },
         "AutomationDetail": {
+          "avgPerRun": "Avg / run",
           "host": "Host",
           "007c8ad874": "Prompt",
           "a1d52c2189": "Usage coverage",
