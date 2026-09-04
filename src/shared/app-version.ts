@@ -27,9 +27,16 @@ export function isPrereleaseAppVersion(value: string): boolean {
   return parsed !== null && parsed.prerelease.length > 0
 }
 
-export function isPerfPrereleaseAppVersion(value: string): boolean {
+/** Whether the version's prerelease names `identifier` — how build channels stamped into
+ *  the version (perf, personal) are recognised. Rejects versions that are not semver. */
+export function hasPrereleaseIdentifier(value: string, identifier: string): boolean {
   const parsed = parseVersion(value)
-  return parsed?.prerelease.some((identifier) => identifier.toLowerCase() === 'perf') ?? false
+  const wanted = identifier.toLowerCase()
+  return parsed?.prerelease.some((entry) => entry.toLowerCase() === wanted) ?? false
+}
+
+export function isPerfPrereleaseAppVersion(value: string): boolean {
+  return hasPrereleaseIdentifier(value, 'perf')
 }
 
 function compareIdentifiers(left: string, right: string): number {
