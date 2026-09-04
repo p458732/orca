@@ -36,6 +36,7 @@ describe('summarizeAutomationRunUsage', () => {
 
     expect(summary).toEqual({
       knownRuns: 2,
+      costedRuns: 1,
       unavailableRuns: 2,
       inputTokens: 20,
       outputTokens: 10,
@@ -57,6 +58,7 @@ describe('summarizeAutomationRunUsage', () => {
   it('summarizes an empty retained history without inventing usage', () => {
     expect(summarizeAutomationRunUsage([])).toEqual({
       knownRuns: 0,
+      costedRuns: 0,
       unavailableRuns: 0,
       inputTokens: 0,
       outputTokens: 0,

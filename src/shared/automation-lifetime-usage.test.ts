@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   accumulateAutomationLifetimeUsage,
-  getAutomationUsagePerRun,
   type AutomationLifetimeUsage
 } from './automation-lifetime-usage'
+import { getAutomationUsagePerRun } from './automation-usage-summary'
 import type { AutomationRun, AutomationRunUsage } from './automations-types'
 
 function knownUsage(overrides: Partial<AutomationRunUsage> = {}): AutomationRunUsage {
@@ -28,10 +28,15 @@ function knownUsage(overrides: Partial<AutomationRunUsage> = {}): AutomationRunU
   }
 }
 
-function run(id: string, usage: AutomationRunUsage | null, startedAt = 1000): AutomationRun {
+function run(
+  id: string,
+  usage: AutomationRunUsage | null,
+  startedAt = 1000,
+  automationId = 'a1'
+): AutomationRun {
   return {
     id,
-    automationId: 'a1',
+    automationId,
     title: id,
     scheduledFor: startedAt,
     status: 'completed',
@@ -54,22 +59,30 @@ function run(id: string, usage: AutomationRunUsage | null, startedAt = 1000): Au
 
 describe('accumulateAutomationLifetimeUsage', () => {
   it('seeds from every retained run so pre-existing automations do not restart at zero', () => {
-    const result = accumulateAutomationLifetimeUsage(
-      undefined,
-      [run('r1', knownUsage(), 1000), run('r2', knownUsage(), 2000)],
-      'r2'
-    )
-    expect(result).toMatchObject({
+    const first = run('r1', knownUsage(), 1000)
+    const latest = run('r2', knownUsage(), 2000)
+    expect(accumulateAutomationLifetimeUsage(undefined, latest, [first, latest])).toMatchObject({
       knownRuns: 2,
       costedRuns: 2,
       totalTokens: 2000,
       cacheTokens: 1400,
       estimatedCostUsd: 1,
+      since: 1000,
+      lastRunId: 'r2'
+    })
+  })
+
+  it('ignores runs belonging to another automation while seeding', () => {
+    const mine = run('r1', knownUsage(), 1000)
+    const theirs = run('r9', knownUsage(), 500, 'other')
+    expect(accumulateAutomationLifetimeUsage(undefined, mine, [mine, theirs])).toMatchObject({
+      knownRuns: 1,
+      totalTokens: 1000,
       since: 1000
     })
   })
 
-  it('adds only the named run once seeded', () => {
+  it('adds only the completed run once seeded', () => {
     const seeded: AutomationLifetimeUsage = {
       knownRuns: 5,
       costedRuns: 5,
@@ -82,58 +95,47 @@ describe('accumulateAutomationLifetimeUsage', () => {
       since: 500,
       lastRunId: 'r0'
     }
-    const result = accumulateAutomationLifetimeUsage(
-      seeded,
-      [run('r1', knownUsage(), 1000), run('r2', knownUsage(), 2000)],
-      'r2'
-    )
-    expect(result).toMatchObject({ knownRuns: 6, totalTokens: 6000, estimatedCostUsd: 3 })
+    const latest = run('r2', knownUsage(), 2000)
+    expect(accumulateAutomationLifetimeUsage(seeded, latest, [])).toMatchObject({
+      knownRuns: 6,
+      totalTokens: 6000,
+      estimatedCostUsd: 3,
+      since: 500
+    })
   })
 
   it('survives retention pruning the runs the total was seeded from', () => {
-    const seeded = accumulateAutomationLifetimeUsage(undefined, [run('r1', knownUsage())], 'r1')
+    const first = run('r1', knownUsage())
+    const seeded = accumulateAutomationLifetimeUsage(undefined, first, [first])
     expect(seeded?.totalTokens).toBe(1000)
     // The seeding run is gone; only the new one is retained.
-    const next = accumulateAutomationLifetimeUsage(
-      seeded ?? undefined,
-      [run('r2', knownUsage(), 9000)],
-      'r2'
-    )
-    expect(next).toMatchObject({ knownRuns: 2, totalTokens: 2000 })
+    const next = run('r2', knownUsage(), 9000)
+    expect(accumulateAutomationLifetimeUsage(seeded ?? undefined, next, [next])).toMatchObject({
+      knownRuns: 2,
+      totalTokens: 2000
+    })
   })
 
   it('counts runs without a cost estimate in knownRuns but not costedRuns', () => {
-    const result = accumulateAutomationLifetimeUsage(
-      undefined,
-      [run('r1', knownUsage()), run('r2', knownUsage({ estimatedCostUsd: null }))],
-      'r2'
-    )
-    expect(result).toMatchObject({ knownRuns: 2, costedRuns: 1, estimatedCostUsd: 0.5 })
-  })
-
-  it('returns null when nothing is recordable', () => {
-    expect(accumulateAutomationLifetimeUsage(undefined, [run('r1', null)], 'r1')).toBeNull()
-    const seeded = accumulateAutomationLifetimeUsage(undefined, [run('r1', knownUsage())], 'r1')
+    const priced = run('r1', knownUsage())
+    const unpriced = run('r2', knownUsage({ estimatedCostUsd: null }))
     expect(
-      accumulateAutomationLifetimeUsage(seeded ?? undefined, [run('r1', knownUsage())], 'missing')
-    ).toBeNull()
+      accumulateAutomationLifetimeUsage(undefined, unpriced, [priced, unpriced])
+    ).toMatchObject({ knownRuns: 2, costedRuns: 1, estimatedCostUsd: 0.5 })
   })
-})
 
-describe('accumulateAutomationLifetimeUsage double-count guard', () => {
   it('refuses a repeated completion report for the run just folded', () => {
-    const runs = [run('r1', knownUsage(), 1000), run('r2', knownUsage(), 2000)]
-    const seeded = accumulateAutomationLifetimeUsage(undefined, runs, 'r2')
-    expect(seeded).toMatchObject({ knownRuns: 2, lastRunId: 'r2' })
-    expect(accumulateAutomationLifetimeUsage(seeded ?? undefined, runs, 'r2')).toBeNull()
+    const only = run('r1', knownUsage())
+    const seeded = accumulateAutomationLifetimeUsage(undefined, only, [only])
+    expect(seeded).toMatchObject({ lastRunId: 'r1' })
+    expect(accumulateAutomationLifetimeUsage(seeded ?? undefined, only, [only])).toBeNull()
   })
 
-  it('keeps refusing across a later fold', () => {
-    const runs = [run('r1', knownUsage(), 1000), run('r2', knownUsage(), 2000)]
-    const seeded = accumulateAutomationLifetimeUsage(undefined, [runs[0]], 'r1')
-    const next = accumulateAutomationLifetimeUsage(seeded ?? undefined, runs, 'r2')
-    expect(next).toMatchObject({ knownRuns: 2, lastRunId: 'r2' })
-    expect(accumulateAutomationLifetimeUsage(next ?? undefined, runs, 'r2')).toBeNull()
+  it('returns null when the run reports no usable usage', () => {
+    const none = run('r1', null)
+    expect(accumulateAutomationLifetimeUsage(undefined, none, [none])).toBeNull()
+    const unavailable = run('r2', { ...knownUsage(), status: 'unavailable' })
+    expect(accumulateAutomationLifetimeUsage(undefined, unavailable, [unavailable])).toBeNull()
   })
 })
 
@@ -143,24 +145,44 @@ describe('getAutomationUsagePerRun', () => {
       getAutomationUsagePerRun({
         knownRuns: 4,
         costedRuns: 2,
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheTokens: 0,
+        reasoningOutputTokens: 0,
         totalTokens: 4000,
         estimatedCostUsd: 1
       })
     ).toEqual({ totalTokens: 1000, estimatedCostUsd: 0.5 })
   })
 
-  it('defaults costedRuns to knownRuns for the retained-run summary', () => {
+  it('falls back to knownRuns when a host predating costedRuns sent the summary', () => {
     expect(
-      getAutomationUsagePerRun({ knownRuns: 2, totalTokens: 500, estimatedCostUsd: 1 })
+      getAutomationUsagePerRun({
+        knownRuns: 2,
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheTokens: 0,
+        reasoningOutputTokens: 0,
+        totalTokens: 500,
+        estimatedCostUsd: 1
+      })
     ).toEqual({ totalTokens: 250, estimatedCostUsd: 0.5 })
   })
 
   it('returns null without known runs and keeps an unknown cost unknown', () => {
+    const empty = {
+      knownRuns: 0,
+      costedRuns: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheTokens: 0,
+      reasoningOutputTokens: 0,
+      totalTokens: 0,
+      estimatedCostUsd: null
+    }
+    expect(getAutomationUsagePerRun(empty)).toBeNull()
     expect(
-      getAutomationUsagePerRun({ knownRuns: 0, totalTokens: 0, estimatedCostUsd: null })
-    ).toBeNull()
-    expect(
-      getAutomationUsagePerRun({ knownRuns: 2, totalTokens: 100, estimatedCostUsd: null })
+      getAutomationUsagePerRun({ ...empty, knownRuns: 2, costedRuns: 0, totalTokens: 100 })
     ).toEqual({ totalTokens: 50, estimatedCostUsd: null })
   })
 })

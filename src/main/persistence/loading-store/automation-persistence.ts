@@ -34,7 +34,6 @@ import {
   updateAutomationRun as updateAutomationRunOperation,
   type AutomationRunOperations
 } from '../scheduling-automations/automation-run-operations'
-import { recordAutomationLifetimeUsage as recordAutomationLifetimeUsageOperation } from '../scheduling-automations/automation-lifetime-usage-operations'
 import {
   advanceAutomationNextRun as advanceAutomationNextRunOperation,
   getLatestAutomationOccurrence as getLatestAutomationOccurrenceOperation
@@ -194,15 +193,6 @@ export class AutomationPersistence {
 
   getLatestAutomationOccurrence(automation: Automation, now = Date.now()): number | null {
     return getLatestAutomationOccurrenceOperation(automation, now)
-  }
-
-  recordAutomationLifetimeUsage(automationId: string, runId: string): Automation | null {
-    return recordAutomationLifetimeUsageOperation(
-      this[automationPersistenceContext].runtime.state,
-      () => this[automationPersistenceContext].flushBarriers.flush(),
-      automationId,
-      runId
-    )
   }
 }
 
