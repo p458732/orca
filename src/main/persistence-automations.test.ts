@@ -3,6 +3,8 @@ import { rmSync, mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { PersistedState } from '../shared/persisted-state-types'
+import type { AutomationRunUsage } from '../shared/automations-types'
+import { MAX_AUTOMATION_RUNS_PER_AUTOMATION } from '../shared/automation-run-retention'
 import { toRuntimeExecutionHostId, toSshExecutionHostId } from '../shared/execution-host'
 import {
   testState,
@@ -567,6 +569,80 @@ describe('Store', () => {
     // Store can briefly hold cap+2: the last-created run finalizes after its creation-time prune, and the late completion lands without a prune of its own.
     expect(runs.some((run) => run.id === firstCompletedId)).toBe(false)
     expect(runs.length).toBeLessThanOrEqual(102)
+  })
+
+  it('folds completed run usage into a lifetime total that outlives run retention', async () => {
+    const store = await createStore()
+    store.addRepo(makeRepo())
+    const automation = store.createAutomation({
+      name: 'Hourly digest',
+      prompt: 'Summarize',
+      agentId: 'claude',
+      projectId: 'r1',
+      workspaceMode: 'new_per_run',
+      timezone: 'UTC',
+      rrule: 'FREQ=HOURLY',
+      dtstart: new Date('2026-05-13T00:00:00Z').getTime()
+    })
+    const base = new Date('2026-05-13T09:00:00Z').getTime()
+    const usage = (totalTokens: number, estimatedCostUsd: number | null): AutomationRunUsage => ({
+      status: 'known',
+      provider: 'claude',
+      model: 'claude-opus-4',
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      reasoningOutputTokens: 0,
+      totalTokens,
+      estimatedCostUsd,
+      estimatedCostSource: estimatedCostUsd === null ? null : 'api_equivalent',
+      providerSessionId: null,
+      attribution: null,
+      collectedAt: base,
+      unavailableReason: null,
+      unavailableMessage: null
+    })
+    const complete = (offset: number, totalTokens: number, cost: number | null): void => {
+      const run = store.createAutomationRun(automation, base + offset * 60_000)
+      store.updateAutomationRun({
+        runId: run.id,
+        status: 'completed',
+        workspaceId: null,
+        usage: usage(totalTokens, cost),
+        error: null
+      })
+    }
+
+    complete(0, 100, 0.1)
+    complete(1, 200, null)
+    const afterTwo = store.listAutomations().find((entry) => entry.id === automation.id)
+    expect(afterTwo?.lifetimeUsage).toMatchObject({
+      knownRuns: 2,
+      costedRuns: 1,
+      totalTokens: 300,
+      estimatedCostUsd: 0.1
+    })
+
+    // Push every earlier run past the retention cap; the lifetime total must not reset.
+    for (let i = 2; i <= MAX_AUTOMATION_RUNS_PER_AUTOMATION + 2; i++) {
+      complete(i, 10, 0.01)
+    }
+    const retained = store.listAutomationRuns(automation.id)
+    expect(retained.length).toBeLessThanOrEqual(MAX_AUTOMATION_RUNS_PER_AUTOMATION + 2)
+    expect(retained.some((run) => run.usage?.totalTokens === 200)).toBe(false)
+
+    const lifetime = store
+      .listAutomations()
+      .find((entry) => entry.id === automation.id)?.lifetimeUsage
+    expect(lifetime?.knownRuns).toBe(MAX_AUTOMATION_RUNS_PER_AUTOMATION + 3)
+    expect(lifetime?.totalTokens).toBe(300 + (MAX_AUTOMATION_RUNS_PER_AUTOMATION + 1) * 10)
+    // Survives a reload: the counter lives on the automation record, not the run rows.
+    const reloaded = await createStore()
+    expect(
+      reloaded.listAutomations().find((entry) => entry.id === automation.id)?.lifetimeUsage
+        ?.totalTokens
+    ).toBe(lifetime?.totalTokens)
   })
 
   it('persists automation precheck config and run results', async () => {

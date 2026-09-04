@@ -1,12 +1,13 @@
-import type { AutomationUsagePerRun } from '../../../../shared/automation-lifetime-usage'
 import type { AutomationRunUsage } from '../../../../shared/automations-types'
+import {
+  getAutomationUsagePerRun,
+  type AutomationUsageTotals
+} from '../../../../shared/automation-usage-summary'
 
 // Why: the summary is computed by whichever authority owns the retained runs, so
 // it lives in shared code; only the display formatting below is renderer-only.
 export type { AutomationUsageSummary } from '../../../../shared/automation-usage-summary'
 export { summarizeAutomationRunUsage } from '../../../../shared/automation-usage-summary'
-export type { AutomationUsagePerRun } from '../../../../shared/automation-lifetime-usage'
-export { getAutomationUsagePerRun } from '../../../../shared/automation-lifetime-usage'
 
 export function formatAutomationTokens(value: number | null | undefined): string {
   if (!value) {
@@ -42,7 +43,10 @@ export function getAutomationUsageStatusLabel(
   return `${tokens} tokens · ${cost}`
 }
 
-export function formatAutomationUsagePerRun(perRun: AutomationUsagePerRun | null): string {
+export function formatAutomationUsagePerRun(
+  totals: AutomationUsageTotals | null | undefined
+): string {
+  const perRun = getAutomationUsagePerRun(totals)
   if (!perRun) {
     return 'n/a'
   }

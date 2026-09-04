@@ -7,12 +7,14 @@ import { getAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
 import type { Automation, AutomationRun } from '../../../../shared/automations-types'
 import { formatUiAutomationSchedule } from './automation-schedule-label'
 import { formatAutomationPrecheckTimeout } from '../../../../shared/automation-precheck'
-import { formatAutomationDateTimeWithRelative } from './automation-page-parts'
+import {
+  formatAutomationDateTime,
+  formatAutomationDateTimeWithRelative
+} from './automation-page-parts'
 import {
   formatAutomationCost,
   formatAutomationTokens,
   formatAutomationUsagePerRun,
-  getAutomationUsagePerRun,
   summarizeAutomationRunUsage
 } from './automation-usage-model'
 import type { AutomationTargetAvailability } from './automation-target-availability'
@@ -137,10 +139,9 @@ export function AutomationDetail({
   // growing. Automations that predate it fall back to what the run table still holds.
   const lifetimeUsage = automation.lifetimeUsage
   const spendUsage = lifetimeUsage ?? usageSummary
-  const perRunLabel = formatAutomationUsagePerRun(getAutomationUsagePerRun(spendUsage))
   const spendScopeTitle = lifetimeUsage
     ? `Lifetime across ${lifetimeUsage.knownRuns} runs${
-        lifetimeUsage.since ? ` since ${new Date(lifetimeUsage.since).toLocaleDateString()}` : ''
+        lifetimeUsage.since ? ` since ${formatAutomationDateTime(lifetimeUsage.since)}` : ''
       }`
     : `Retained runs only (${usageCoverage})`
   const agentLabel =
@@ -324,7 +325,7 @@ export function AutomationDetail({
         />
         <DetailMetric
           label={translate('auto.components.automations.AutomationDetail.avgPerRun', 'Avg / run')}
-          value={perRunLabel}
+          value={formatAutomationUsagePerRun(spendUsage)}
           title={spendScopeTitle}
         />
         <DetailMetric

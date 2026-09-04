@@ -6,6 +6,7 @@ import type {
   AutomationRunTrigger
 } from '../../../shared/automations-types'
 import type { PersistedState } from '../../../shared/persisted-state-types'
+import { accumulateAutomationLifetimeUsage } from '../../../shared/automation-lifetime-usage'
 import {
   nextAutomationRunNumber,
   pruneAutomationRuns
@@ -31,6 +32,35 @@ function touchAutomation(state: PersistedState, automationId: string, now: numbe
   }
   state.automations = state.automations.map((entry) =>
     entry.id === automationId ? { ...entry, lastRunAt: now, updatedAt: now } : entry
+  )
+}
+
+/** Why here: retention prunes the runs the retained-run summary sums, so a frequent
+ *  schedule's spend resets roughly daily. Folding in the same array rebuild and flush as
+ *  the run write keeps the two totals atomic and costs no extra state serialization. */
+function touchAutomationForCompletedRun(
+  state: PersistedState,
+  run: AutomationRun,
+  now: number
+): void {
+  const current = state.automations.find((entry) => entry.id === run.automationId)
+  if (!current) {
+    return
+  }
+  const lifetimeUsage = accumulateAutomationLifetimeUsage(
+    current.lifetimeUsage,
+    run,
+    state.automationRuns ?? []
+  )
+  const updated: Automation = {
+    ...current,
+    lastRunAt: now,
+    updatedAt: now,
+    ...(lifetimeUsage ? { lifetimeUsage } : {})
+  }
+  // Replaced, not patched in place: the list projection caches on array identity.
+  state.automations = state.automations.map((entry) =>
+    entry.id === run.automationId ? updated : entry
   )
 }
 
@@ -182,7 +212,7 @@ export function updateAutomationRun(
   operations.state.automationRuns = operations.state.automationRuns.map((run) =>
     run.id === result.runId ? updated : run
   )
-  touchAutomation(operations.state, updated.automationId, now)
+  touchAutomationForCompletedRun(operations.state, updated, now)
   operations.flush()
   return updated
 }

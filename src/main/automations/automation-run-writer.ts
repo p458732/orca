@@ -33,12 +33,6 @@ export function createAutomationRunWriter(
     },
     updateRun: (result: AutomationDispatchResult): AutomationRun => {
       const run = store.updateAutomationRun(result)
-      if (result.usage) {
-        // Why: retention prunes this row within a day on a frequent schedule, so the spend
-        // has to land somewhere that outlives it. Folded at the write rather than at one
-        // caller so every path that records usage is covered.
-        store.recordAutomationLifetimeUsage(run.automationId, run.id)
-      }
       announce(run.automationId, result.usage ? 'usage' : 'run')
       return run
     },

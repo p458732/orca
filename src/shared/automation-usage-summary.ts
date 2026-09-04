@@ -1,14 +1,69 @@
-import type { AutomationRun, AutomationRunStatus } from './automations-types'
+import type { AutomationRun, AutomationRunStatus, AutomationRunUsage } from './automations-types'
 
-export type AutomationUsageSummary = {
+/** The fields every per-automation usage total carries, however it was accumulated. */
+export type AutomationUsageTotals = {
   knownRuns: number
-  unavailableRuns: number
+  /** Runs that reported a cost; the rest ran on models with no pricing. Absent on
+   *  summaries received from a host that predates the field. */
+  costedRuns?: number
   inputTokens: number
   outputTokens: number
   cacheTokens: number
   reasoningOutputTokens: number
   totalTokens: number
   estimatedCostUsd: number | null
+}
+
+export const EMPTY_AUTOMATION_USAGE_TOTALS: AutomationUsageTotals = {
+  knownRuns: 0,
+  costedRuns: 0,
+  inputTokens: 0,
+  outputTokens: 0,
+  cacheTokens: 0,
+  reasoningOutputTokens: 0,
+  totalTokens: 0,
+  estimatedCostUsd: null
+}
+
+/** One run's usage folded into a running total. Shared so the retained-run summary and
+ *  the lifetime record cannot drift apart on what "total tokens" means. */
+export function foldAutomationRunUsage(
+  totals: AutomationUsageTotals,
+  usage: AutomationRunUsage
+): AutomationUsageTotals {
+  const cost = usage.estimatedCostUsd
+  return {
+    knownRuns: totals.knownRuns + 1,
+    costedRuns: (totals.costedRuns ?? 0) + (cost === null ? 0 : 1),
+    inputTokens: totals.inputTokens + (usage.inputTokens ?? 0),
+    outputTokens: totals.outputTokens + (usage.outputTokens ?? 0),
+    cacheTokens: totals.cacheTokens + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0),
+    reasoningOutputTokens: totals.reasoningOutputTokens + (usage.reasoningOutputTokens ?? 0),
+    totalTokens: totals.totalTokens + (usage.totalTokens ?? 0),
+    estimatedCostUsd:
+      cost === null ? totals.estimatedCostUsd : (totals.estimatedCostUsd ?? 0) + cost
+  }
+}
+
+/** Per-run averages. Cost divides by the runs that priced, tokens by every known run. */
+export function getAutomationUsagePerRun(
+  totals: AutomationUsageTotals | null | undefined
+): { totalTokens: number; estimatedCostUsd: number | null } | null {
+  if (!totals || totals.knownRuns <= 0) {
+    return null
+  }
+  const costedRuns = totals.costedRuns ?? totals.knownRuns
+  return {
+    totalTokens: totals.totalTokens / totals.knownRuns,
+    estimatedCostUsd:
+      totals.estimatedCostUsd === null || costedRuns <= 0
+        ? null
+        : totals.estimatedCostUsd / costedRuns
+  }
+}
+
+export type AutomationUsageSummary = AutomationUsageTotals & {
+  unavailableRuns: number
   /** Newest retained run's status, so list filters never fetch run history. Optional: older projections omit it. */
   lastRunStatus?: AutomationRunStatus | null
   lastRunAt?: number | null
@@ -18,47 +73,24 @@ export type AutomationUsageSummary = {
 export function summarizeAutomationRunUsage(
   runs: readonly AutomationRun[]
 ): AutomationUsageSummary {
-  let knownRuns = 0
+  let totals = EMPTY_AUTOMATION_USAGE_TOTALS
   let unavailableRuns = 0
-  let inputTokens = 0
-  let outputTokens = 0
-  let cacheTokens = 0
-  let reasoningOutputTokens = 0
-  let totalTokens = 0
-  let estimatedCostUsd = 0
-  let hasKnownCost = false
   let latest: AutomationRun | null = null
 
   for (const run of runs) {
     if (!latest || run.createdAt > latest.createdAt) {
       latest = run
     }
-    const usage = run.usage
-    if (!usage || usage.status !== 'known') {
+    if (run.usage?.status !== 'known') {
       unavailableRuns++
       continue
     }
-    knownRuns++
-    inputTokens += usage.inputTokens ?? 0
-    outputTokens += usage.outputTokens ?? 0
-    cacheTokens += (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0)
-    reasoningOutputTokens += usage.reasoningOutputTokens ?? 0
-    totalTokens += usage.totalTokens ?? 0
-    if (usage.estimatedCostUsd !== null) {
-      estimatedCostUsd += usage.estimatedCostUsd
-      hasKnownCost = true
-    }
+    totals = foldAutomationRunUsage(totals, run.usage)
   }
 
   return {
-    knownRuns,
+    ...totals,
     unavailableRuns,
-    inputTokens,
-    outputTokens,
-    cacheTokens,
-    reasoningOutputTokens,
-    totalTokens,
-    estimatedCostUsd: hasKnownCost ? estimatedCostUsd : null,
     lastRunStatus: latest?.status ?? null,
     lastRunAt: latest ? (latest.dispatchedAt ?? latest.startedAt ?? latest.createdAt ?? null) : null
   }

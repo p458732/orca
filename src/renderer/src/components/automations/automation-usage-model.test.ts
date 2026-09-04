@@ -79,6 +79,7 @@ describe('automation usage model', () => {
 
     expect(summary).toEqual({
       knownRuns: 1,
+      costedRuns: 1,
       unavailableRuns: 1,
       inputTokens: 1000,
       outputTokens: 300,
