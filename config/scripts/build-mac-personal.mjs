@@ -30,6 +30,14 @@ if (skipComputerUse) {
   )
 }
 
+// Why the arch flags are pulled out rather than forwarded: the mac targets pin `arch` in
+// the config, and a config-pinned list wins over electron-builder's `--arm64`, so the flag
+// was silently ignored and every local build produced both slices. The config reads this
+// env var instead.
+const ARCH_FLAGS = new Set(['--arm64', '--x64', '--universal'])
+const forwardedArgs = process.argv.slice(2).filter((arg) => arg !== '--')
+const requestedArchs = forwardedArgs.filter((arg) => ARCH_FLAGS.has(arg)).map((arg) => arg.slice(2))
+
 const identity = getLocalBuildIdentity('personal')
 console.log(`[build:mac:personal] version ${identity.version} (updater disabled)`)
 execFileSync(
@@ -40,16 +48,17 @@ execFileSync(
     '--config',
     'config/electron-builder.config.cjs',
     '--mac',
-    // Passthrough so a single-arch build (`-- --arm64`) does not need its own script. The
-    // bare `--` is dropped because `pnpm run` forwards the separator itself, and
-    // electron-builder stops parsing options when it sees one.
-    ...process.argv.slice(2).filter((arg) => arg !== '--')
+    // Passthrough for electron-builder's own flags. The bare `--` is dropped because
+    // `pnpm run` forwards the separator itself, and electron-builder stops parsing
+    // options when it sees one.
+    ...forwardedArgs.filter((arg) => !ARCH_FLAGS.has(arg))
   ],
   {
     env: {
       ...process.env,
       ORCA_BUILD_COMMIT: identity.commit,
       ORCA_LOCAL_BUILD_VERSION: identity.version,
+      ...(requestedArchs.length > 0 ? { ORCA_MAC_ARCHS: requestedArchs.join(',') } : {}),
       ...(skipComputerUse ? { ORCA_SKIP_COMPUTER_USE_HELPER: '1' } : {})
     },
     stdio: 'inherit'
