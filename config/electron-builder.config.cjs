@@ -61,6 +61,10 @@ const devChannelRepo = isHourlyChannel
     : isAdhocChannel
       ? 'orca-adhoc'
       : null
+// Why: the computer-use helper is the one native artifact that needs Swift Package
+// Manager, and SPM needs a full Xcode install — Command Line Tools cannot resolve the
+// platform SDK path. Machines without Xcode opt out rather than being unable to package.
+const skipComputerUseHelper = process.env.ORCA_SKIP_COMPUTER_USE_HELPER === '1'
 const appId = 'com.stablyai.orca'
 const featureWallResources = {
   from: 'resources/onboarding/feature-wall',
@@ -319,7 +323,12 @@ module.exports = {
       chmodSync(join(resourcesDir, filename), 0o755)
     }
     if (context.electronPlatformName === 'darwin') {
-      await signMacComputerUseHelper(join(resourcesDir, 'Orca Computer Use.app'), context.packager)
+      if (!skipComputerUseHelper) {
+        await signMacComputerUseHelper(
+          join(resourcesDir, 'Orca Computer Use.app'),
+          context.packager
+        )
+      }
       await signMacStandaloneHelper(
         join(resourcesDir, '..', 'MacOS', 'orca-notification-status'),
         'orca-notification-status',
@@ -431,10 +440,14 @@ module.exports = {
         from: 'node_modules/agent-browser/bin/agent-browser-darwin-${arch}',
         to: 'agent-browser-darwin-${arch}'
       },
-      {
-        from: 'native/computer-use-macos/.build/release/Orca Computer Use.app',
-        to: 'Orca Computer Use.app'
-      },
+      ...(skipComputerUseHelper
+        ? []
+        : [
+            {
+              from: 'native/computer-use-macos/.build/release/Orca Computer Use.app',
+              to: 'Orca Computer Use.app'
+            }
+          ]),
       featureWallResources
     ],
     // Why: the notification-status helper must execute from Contents/MacOS —
