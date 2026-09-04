@@ -74,8 +74,10 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename
       '--config',
       'config/electron-builder.config.cjs',
       '--mac',
-      // Passthrough so a single-arch build (`-- --arm64`) does not need its own script.
-      ...process.argv.slice(2)
+      // Passthrough so a single-arch build (`-- --arm64`) does not need its own
+      // script. The bare `--` is dropped because `pnpm run` forwards the separator
+      // itself, and electron-builder stops parsing options when it sees one.
+      ...process.argv.slice(2).filter((arg) => arg !== '--')
     ],
     {
       env: {
